@@ -495,6 +495,7 @@ local state = {
     commentsPage = 0,
     maxCommentPages = 0,
     commentsAdditionalText = "",
+    is_live = false,
 
     sponsor_segments = {},
 
@@ -756,7 +757,7 @@ end
 -- Tracklist Management
 --
 
-local nicetypes = {video = texts.video, audio = texts.audio, sub = texts.subtitle}
+local valid_types = {video = texts.video, audio = texts.audio, sub = texts.subtitle}
 local tracks_osc, tracks_mpv
 
 -- updates the OSC internal playlists, should be run each time the track-layout changes
@@ -786,7 +787,7 @@ end
 
 -- return a nice list of tracks of the given type (video, audio, sub)
 function get_tracklist(type)
-    local message = nicetypes[type] .. texts.track
+    local message = valid_types[type] .. texts.track
     if not tracks_osc or #tracks_osc[type] == 0 then
         message = texts.none
     else
@@ -1498,10 +1499,13 @@ function checktitle()
     state.ytdescription = ""
     state.youtubeuploader = artist
 
-    print(dumptable(mp.get_property_native("metadata")))
-    if mp.get_property_native('metadata') then
-        state.ytdescription = mp.get_property_native('metadata').ytdl_description or description or ""
-        state.ytdescription = state.ytdescription:gsub('\r', '\\N'):gsub('\n', '\\N'):gsub("%%", "%%%%")
+    local metadata = mp.get_property_native('metadata')
+    print(dumptable(metadata))
+    if metadata then
+        state.ytdescription = metadata.ytdl_description or description or ""
+        state.ytdescription = state.ytdescription:gsub('\r', '\\N'):gsub('\n', '\\N'):gsub("%%", "%%")
+
+        state.is_live = metadata.ytdl_is_live
     else
         print("Failed to load metadata")
     end
@@ -1515,7 +1519,6 @@ function checktitle()
 
                 if #utf8split ~= #state.ytdescription then
                     local tmp = utf8split:gsub("[,%.%s]+$", "")
-
                     utf8split = tmp .. "..."
                 end
                 utf8split = utf8split:match("^(.-)%s*$")
@@ -1922,7 +1925,7 @@ function process_vid_stats(success, result, error)
         state.ytdescription
 
     if (state.dislikes == "") then
-        state.localDescriptionClick = state.localDescriptionClick .. string.gsub(string.gsub(result.stdout, '\r', '\\N'), '\n', '\\N')
+        state.localDescriptionClick = state.localDescriptionClick .. string.gsub(result.stdout, '\r', '\\N'):gsub("\n", "\\N")
         state.localDescriptionClick = state.localDescriptionClick:sub(1, #state.localDescriptionClick - 2)
     end
     addLikeCountToTitle()
@@ -3896,7 +3899,7 @@ local function osc_init()
         local prefix = state.tc_right_rem and
             (user_opts.unicode_minus and UNICODE_MINUS or "-") or ""
 
-        return prefix .. format_time(time_to_display)
+        return prefix .. format_time(time_to_display) .. (state.is_live and " • LIVE" or "")
     end
     ne.eventresponder["mbtn_left_up"] = function()
         state.tc_right_rem = not state.tc_right_rem
@@ -4338,7 +4341,6 @@ function tick()
             state.showhide_enabled = false
         end
 
-
     elseif (state.fullscreen and user_opts.show_fullscreen)
         or (not state.fullscreen and user_opts.show_windowed) then
 
@@ -4389,7 +4391,7 @@ mp.observe_property('seeking', nil, function()
 end)
 
 if user_opts.key_bindings then
-    local function changeChapter(number)
+    local function change_chapter(number)
         mp.commandv("add", "chapter", number)
         reset_timeout()
         show_message(get_chapterlist())
@@ -4405,10 +4407,10 @@ if user_opts.key_bindings then
         destroyscrollingkeys()
     end);
     mp.add_key_binding("shift+left", "prevchapter", function()
-        changeChapter(-1)
+        change_chapter(-1)
     end);
     mp.add_key_binding("shift+right", "nextchapter", function()
-        changeChapter(1)
+        change_chapter(1)
     end);
 
     -- extra key bindings
