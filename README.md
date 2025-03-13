@@ -33,6 +33,15 @@ Please note that many of these scripts have been slightly modified from their in
 
 ## Updates
 
+### 2025-03-13
+
+- FEAT: add keybinding for shuffling playlist in input.conf
+
+### 2025-03-11
+
+- FIX: audio/tracklist indicator not showing selected track correctly in `modernX.lua`
+- FIX: changes to Japanese lyric detection in `autolyrics.lua`
+
 ### 2025-02-09
 
 - FEAT: set subtitles to a non-forced sub track as defined by --slang, in `detectdualsubs.lua`
@@ -57,6 +66,8 @@ Please note that many of these scripts have been slightly modified from their in
 - FIX: fix thumbnail border clipping through text weird
 - FEAT: `modernX.lua` now sets the tick rate to the monitors refresh rate
 - FIX: fix state.title_bar not being respected after pinning
+![image](https://github.com/user-attachments/assets/a7dd23bb-f59e-4f0a-bbcb-b9c5c759e802)
+
 
 ### 2025-01-16
 
