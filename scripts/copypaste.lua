@@ -22,8 +22,8 @@ local options = {
 }
 
 if display_protocol == "wayland" then
-	options.linux_copy_command = { "wl-copy", "--no-newline" }
-	options.linux_paste_command = { 'wl-paste' }
+	options.linux_copy_command = { "wl-copy" }
+	options.linux_paste_command = { "wl-paste" }
 end
 
 -- File/URL pasting
@@ -77,7 +77,8 @@ end
 local function set_clipboard(text)
 	local pipe
 	if device == "linux" then
-		pipe = io.popen(options.linux_copy_command, "w")
+		local command = table.concat(options.linux_copy_command, " ")
+		pipe = io.popen(command, "w")
 		pipe:write(text)
 		pipe:close()
 	elseif device == "windows" then
@@ -222,7 +223,7 @@ local function open()
 	-- for ubuntu
 	local url_browser_linux_cmd = 'xdg-open "$url"'
 	local file_browser_linux_cmd =
-	'dbus-send --print-reply --dest=org.freedesktop.FileManager1 /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:"file:$path" string:""'
+		'dbus-send --print-reply --dest=org.freedesktop.FileManager1 /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:"file:$path" string:""'
 	local url_browser_macos_cmd = 'open "$url"'
 	local file_browser_macos_cmd = 'open -a Finder -R "$path"'
 
