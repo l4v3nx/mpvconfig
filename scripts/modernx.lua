@@ -1489,9 +1489,11 @@ function checktitle()
     state.localDescriptionClick = nil
     local title = mp.get_property("media-title")
     local artist = mp.get_property("filtered-metadata/by-key/Album_Artist") or mp.get_property("filtered-metadata/by-key/Artist") or mp.get_property("filtered-metadata/by-key/Uploader")
+    local tempartistclicktext = "Contributing artists: " .. ("" or artist)
     if (mp.get_property("filtered-metadata/by-key/Album_Artist") and mp.get_property("filtered-metadata/by-key/Artist")) then
         if (mp.get_property("filtered-metadata/by-key/Album_Artist") ~= mp.get_property("filtered-metadata/by-key/Artist")) then
-            artist = mp.get_property("filtered-metadata/by-key/Album_Artist") .. ', ' .. mp.get_property("filtered-metadata/by-key/Artist")
+            artist = mp.get_property("filtered-metadata/by-key/Artist") .. ", " .. mp.get_property("filtered-metadata/by-key/Album_Artist")
+            tempartistclicktext = "Contributing artists: " .. mp.get_property("filtered-metadata/by-key/Artist") .. "\\NAlbum arist: " .. mp.get_property("filtered-metadata/by-key/Album_Artist")
         end
     end
     local album = mp.get_property("filtered-metadata/by-key/Album")
@@ -1539,7 +1541,7 @@ function checktitle()
         if (artist ~= nil) then
             if (state.localDescription == nil) then
                 state.localDescription = artist
-                state.localDescriptionClick = state.localDescriptionClick .. state.localDescription
+                state.localDescriptionClick = state.localDescriptionClick .. tempartistclicktext
                 state.localDescriptionIsClickable = true
             end
         end
@@ -1550,12 +1552,12 @@ function checktitle()
                 state.localDescriptionIsClickable = true
             else -- append to other metadata
                 if (state.localDescriptionClick ~= nil) then
-                    state.localDescriptionClick = state.localDescriptionClick .. " | " .. album
+                    state.localDescriptionClick = state.localDescriptionClick .. "\\NAlbum: " .. album .. "\\N"
                 else
                     state.localDescriptionClick = album
                     state.localDescriptionIsClickable = true
                 end
-                state.localDescription = state.localDescription .. " | " .. album
+                state.localDescription = state.localDescription .. " (" .. album .. ")"
             end
         end
         if (date ~= nil) then
@@ -3868,8 +3870,8 @@ local function osc_init()
     ne = new_element("chapter_title", "button")
     ne.visible = true
     ne.content = function()
-        if state.buffering then
-            return "Buffering..." .. " " .. mp.get_property("cache-buffering-state") .. "%"
+        if state.buffering ~= nil and state.buffering then
+            return "Buffering..." .. " " .. (mp.get_property("cache-buffering-state") or "0") .. "%"
         else
             if user_opts.chapter_fmt ~= "no" and chapter_index >= 0 then
                 request_init()
