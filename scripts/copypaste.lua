@@ -16,15 +16,17 @@ local options = {
 	paste_keybind = [[
     ["ctrl+v", "ctrl+V", "meta+v", "meta+V"]
     ]],
-	open_keybind = "o",
-	linux_copy_command = { "xclip", "-selection", "clipboard", "-in" },
-	linux_paste_command = { "xclip", "-selection", "clipboard", "-o" },
+    open_keybind = "o",
+    linux_copy_command = { "xclip", "-silent", "-selection", "clipboard", "-in" },
+    linux_paste_command = { "xclip", "-selection", "clipboard", "-o" },
 }
 
 if display_protocol == "wayland" then
 	options.linux_copy_command = { "wl-copy" }
-	options.linux_paste_command = { "wl-paste" }
+	options.linux_paste_command = { 'wl-paste' }
 end
+
+(require "mp.options").read_options(options)
 
 -- File/URL pasting
 
@@ -75,20 +77,15 @@ local function handle_res(res, args)
 end
 
 local function set_clipboard(text)
-	local pipe
-	if device == "linux" then
+    local pipe
+    if device == "linux" then
 		local command = table.concat(options.linux_copy_command, " ")
 		pipe = io.popen(command, "w")
-		pipe:write(text)
-		pipe:close()
-	elseif device == "windows" then
-		mp.utils.subprocess({
-			args = {
-				"powershell",
-				"-NoProfile",
-				"-Command",
-				string.format(
-					[[& {
+        pipe:write(text)
+        pipe:close()
+    elseif device == "windows" then
+        mp.utils.subprocess({ args = {
+            "powershell", "-NoProfile", "-Command", string.format([[& {
                 Trap {
                     Write-Error -ErrorRecord $_
                     Exit 1
@@ -108,16 +105,13 @@ local function set_clipboard(text)
 end
 
 local function get_clipboard()
-	local clipboard
-	if device == "linux" then
-		local args = options.linux_paste_command
+    local clipboard
+    if device == "linux" then
+        local args = options.linux_paste_command
 		return handle_res(mp.utils.subprocess({ args = args, cancellable = false }), args)
-	elseif device == "windows" then
-		local args = {
-			"powershell",
-			"-NoProfile",
-			"-Command",
-			[[& {
+    elseif device == "windows" then
+        local args = {
+            "powershell", "-NoProfile", "-Command", [[& {
                 Trap {
                     Write-Error -ErrorRecord $_
                     Exit 1
@@ -128,14 +122,14 @@ local function get_clipboard()
                 }
                 $u8clip = [System.Text.Encoding]::UTF8.GetBytes($clip)
                 [Console]::OpenStandardOutput().Write($u8clip, 0, $u8clip.Length)
-            }]],
-		}
-		return handle_res(mp.utils.subprocess({ args = args, cancellable = false }), args)
-	elseif device == "mac" then
+            }]]
+        }
+        return handle_res(mp.utils.subprocess({ args = args, cancellable = false }), args)
+    elseif device == "mac" then
 		local args = { "pbpaste" }
 		return handle_res(mp.utils.subprocess({ args = args, cancellable = false }), args)
-	end
-	return ""
+    end
+    return ""
 end
 
 local function is_url(s)
