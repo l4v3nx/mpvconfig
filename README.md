@@ -34,10 +34,22 @@ Please note that many of these scripts have been slightly modified from their in
 
 ## Updates
 
+### 2025-06-24
+
+- FIX: you can now left click the screen to pause
+- FIX: remove whitespace in `modernx.lua`
+- FIX: implement https://github.com/zydezu/ModernX/pull/68
+- FIX: implement https://github.com/zydezu/ModernX/pull/69, adding `osc_keep_with_cursor`, `seekbar_between_timers` and `seekbar_height` as options in `modernx.lua`
+- FIX: fix https://github.com/zydezu/ModernX/issues/67
+
 ### 2025-05-19
 
 - FIX: implement https://github.com/zydezu/mpvconfig/issues/18, adding `save_location`, `time_stamp_format` and `save_based_on_chapter_name` as options in `screenshotfolder.lua`
 - FIX: implement https://github.com/zydezu/ModernX/issues/66, adding `fade_transparency_strength` and `window_fade_transparency_strength` as options to `modernX`, this also removes the option `titlebarbox`
+
+### 2025-06-01
+
+- FEAT: add the option `removeuuid` to `sponsorblock.lua`
 
 ### 2025-05-17
 
@@ -50,9 +62,9 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2025-04-29
 
-- FIX: crash when changing video with no internet in `modernX.lua`
-- FIX: re-order artists in `autolyrics.lua` and `modernX.lua`
-- FIX: improve metadata description in `modernX.lua`
+- FIX: crash when changing video with no internet in `modernx.lua`
+- FIX: re-order artists in `autolyrics.lua` and `modernx.lua`
+- FIX: improve metadata description in `modernx.lua`
 
 ### 2025-04-08
 
