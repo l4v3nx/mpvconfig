@@ -101,41 +101,7 @@ local function get_metadata()
 end
 
 local function is_japanese(lyrics)
-    -- http://lua-users.org/wiki/LuaUnicode Lua patterns don't support Unicode
-    -- ranges, and you can't even iterate over \u{XXX} sequences in Lua 5.1 and
-    -- 5.2, so just search for some hiragana and katakana characters.
-
-    for _, kana in pairs({
-        'あ', 'い', 'う', 'え', 'お',
-        'か', 'き', 'く', 'け', 'こ',
-        'さ', 'し', 'す', 'せ', 'そ',
-        'た', 'ち', 'つ', 'て', 'と',
-        'な', 'に', 'ぬ', 'ね', 'の',
-        'は', 'ひ', 'ふ', 'へ', 'ほ',
-        'ま', 'み', 'む', 'め', 'も',
-        'や',       'ゆ',       'よ',
-        'ら', 'り', 'る', 'れ', 'ろ',
-        'わ',                   'を',
-        'ア', 'イ', 'ウ', 'エ', 'オ',
-        'カ', 'キ', 'ク', 'ケ', 'コ',
-        'サ', 'シ', 'ス', 'セ', 'ソ',
-        'タ', 'チ', 'ツ', 'テ', 'ト',
-        'ナ', 'ニ', 'ヌ', 'ネ', 'ノ',
-        'ハ', 'ヒ', 'フ', 'ヘ', 'ホ',
-        'マ', 'ミ', 'ム', 'メ', 'モ',
-        'ヤ',       'ユ',       'ヨ',
-        'ラ', 'リ', 'ル', 'レ', 'ロ',
-        'ワ',                   'ヲ',
-        'ン', 'ガ', 'ギ', 'グ', 'ゲ', 'ゴ',
-        'ザ', 'ジ', 'ズ', 'ゼ', 'ゾ',
-        'ダ', 'ヂ', 'ヅ', 'デ', 'ド',
-        'バ', 'ビ', 'ブ', 'ベ', 'ボ',
-    }) do
-        if lyrics:find(kana) then
-            return true
-        end
-    end
-    return false
+    return lyrics:find("[\227-\233]") ~= nil
 end
 
 local function chinese_to_kanji(lyrics)
@@ -191,6 +157,25 @@ local function strip_artists(lyrics)
     return lyrics
 end
 
+local function create_folder(path)
+	local args
+	if package.config:sub(1,1) == '\\' then
+		-- Windows: normalize slashes and use 'mkdir' with '/S' for nested folders
+		local win_path = path:gsub("/", "\\")
+		args = { "cmd", "/c", "mkdir", win_path }
+	else
+		-- Unix/macOS/Linux
+		args = { "mkdir", "-p", path }
+	end
+
+	local res = mp.utils.subprocess({ args = args })
+	if res.status == 0 then
+		mp.msg.info("Successfully created folder: " .. path)
+	else
+		mp.msg.error("Failed to create folder: " .. path)
+	end
+end
+
 local function save_lyrics(lyrics)
     if lyrics == "" or #lyrics < 100 then
         show_error("Lyrics not found")
@@ -204,11 +189,10 @@ local function save_lyrics(lyrics)
         return
     end
 
-    -- NetEase's LRCs can have 3-digit milliseconds, which messes up the sub's timings in mpv.
-    lyrics = lyrics:gsub("(%.%d%d)%d]", "%1]")
     lyrics = lyrics:gsub("’", "'"):gsub("' ", "'"):gsub("\\", "") -- remove strange characters    
 
     local add_ja = false
+
     if is_japanese(lyrics) then
         if options.mark_as_ja then
             add_ja = true
@@ -228,19 +212,6 @@ local function save_lyrics(lyrics)
 
     local function check_if_windows()
         local a=os.getenv("windir")if a~=nil then return true else return false end
-    end
-
-    local is_windows = check_if_windows()
-
-    local function create_directory(directory_path)
-        local args = {"mkdir", directory_path}
-        if is_windows then args = {"powershell", "-NoProfile", "-Command", "mkdir", directory_path} end
-        local res = mp.utils.subprocess({ args = args, cancellable = false })
-        if res.status ~= 0 then
-            mp.msg.error("Failed to create directory: " .. directory_path)
-        else
-            mp.msg.info("Directory created successfully: " .. directory_path)
-        end
     end
 
     downloading_name = downloading_name:gsub("\\", " "):gsub("/", " ")
@@ -264,17 +235,9 @@ local function save_lyrics(lyrics)
 
     local lrc_path = (path:gsub("?", "") .. (add_ja and ".ja" or "") .. ".lrc")
     local dir_path = lrc_path:match("(.+[\\/])")
-    if is_windows then
-        lrc_path = lrc_path:gsub("/", "\\")
-        dir_path = dir_path:gsub("/", "\\")
-    end
 
     if mp.utils.readdir(dir_path) == nil and options.store_lyrics_seperate then
-        if not is_windows then
-            local subdir_path = mp.utils.split_path(dir_path)
-            create_directory(subdir_path) -- required for linux as it cannot create mpv/lrcdownloads/
-        end
-        create_directory(dir_path)
+        create_folder(dir_path)
     end
 
     local lrc = io.open(lrc_path, "w")
@@ -339,19 +302,53 @@ local function musixmatch_download()
         return
     end
 
-    local body = response.message.body.macro_calls
     local lyrics = ""
-    if body["matcher.track.get"].message.header.status_code == 200 then
-        local track = body["matcher.track.get"].message.body.track
+    local body = response and response.message and response.message.body and response.message.body.macro_calls
+    
+    if not body then
+        show_error("Invalid response structure: macro_calls not found")
+        return
+    end
+    local matcher = body["matcher.track.get"]
+    if not matcher or not matcher.message or not matcher.message.header then
+        show_error("Invalid matcher.track.get structure")
+        return
+    end
+
+    if matcher.message.header.status_code == 200 then
+        local track = matcher.message.body and matcher.message.body.track
+        if not track or not track.artist_name or not track.track_name then
+            show_error("Track data missing")
+            return
+        end
         downloading_name = track.artist_name .. " - " .. track.track_name
 
         if track.has_subtitles == 1 then
-            lyrics = body["track.subtitles.get"].message.body.subtitle_list[1].subtitle.subtitle_body
-        elseif track.has_lyrics == 1 then -- lyrics without timestamps
-            lyrics = body["track.lyrics.get"].message.body.lyrics.lyrics_body
+            local subtitles = body["track.subtitles.get"]
+            if subtitles and subtitles.message and subtitles.message.body then
+                local subtitle_list = subtitles.message.body.subtitle_list
+                if subtitle_list and subtitle_list[1] and subtitle_list[1].subtitle then
+                    lyrics = subtitle_list[1].subtitle.subtitle_body or ""
+                else
+                    show_error("Subtitles data is malformed")
+                end
+            else
+                show_error("Subtitle data missing")
+            end
+
+        elseif track.has_lyrics == 1 then
+            local lyrics_data = body["track.lyrics.get"]
+            if lyrics_data and lyrics_data.message and lyrics_data.message.body and lyrics_data.message.body.lyrics then
+                lyrics = lyrics_data.message.body.lyrics.lyrics_body or ""
+            else
+                show_error("Lyrics data is missing or malformed")
+            end
+
         elseif track.instrumental == 1 then
             show_error("This is an instrumental track")
             return
+        else
+            show_error("No lyrics or subtitles found")
         end
     end
 
@@ -359,20 +356,6 @@ local function musixmatch_download()
 end
 
 local netease_songs
-
-function dump(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
-end
-
 
 local function select_netease_lyrics()
     local items = {}

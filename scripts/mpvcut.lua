@@ -16,16 +16,18 @@ local options = {
 	save_directory = "~~desktop/mpv/clips", -- required for web videos
 
 	-- Key config
-	key_cut = "z",
-	key_cancel_cut = "Z",
-	key_cycle_action = "a",
+	key_cut = "a",
+	key_cancel_cut = "shift+a",
+	key_cycle_action = "A",
 
 	-- The default action
 	action = "COPY",
 
 	-- File size targets
 	compress_size = 9.50,					-- target size for the compress action (in MB)
-	resolution = 720, 						-- target resolution to compress to (vertical resolution)
+	encoding_type = "h265",					-- h264, h265, av1
+	shrink_resolution = true,				-- whether to shrink the resolution to the target resolution 
+	target_resolution = 1080, 				-- target resolution to compress to (vertical resolution)
 
 	-- Web videos/cache
 	use_cache_for_web_videos = true,
@@ -74,11 +76,20 @@ local function init()
 		if (options.use_cache_for_web_videos and is_url(mp.get_property("path"))) then
 			local video = mp.get_property("video-format", "none")
 			local audio = mp.get_property("audio-codec-name", "none")
-			local webm = {vp8=true, vp9=true, av1=true, opus=true, vorbis=true, none=true}
-			local mp4 = {h264=true, hevc=true, av1=true, mp3=true, flac=true, aac=true, none=true}
-			if webm[video] and webm[audio] then
+
+			local webm_codecs = { vp8=true, vp9=true }
+			local webm_audio  = { opus=true, vorbis=true }
+
+			local mp4_video   = { h264=true, hevc=true, av1=true }
+			local mp4_audio   = { opus=true, mp3=true, flac=true, aac=true }
+
+			local function contains(tbl, val)
+				return tbl[val] or false
+			end
+
+			if contains(webm_codecs, video) and contains(webm_audio, audio) then
 				web_ext = ".webm"
-			elseif mp4[video] and mp4[audio] then
+			elseif contains(mp4_video, video) and contains(mp4_audio, audio) then
 				web_ext = ".mp4"
 			else
 				web_ext = ".mkv"
@@ -129,28 +140,29 @@ local function next_table_key(t, current)
 	return keys[1]
 end
 
-local function check_if_windows() local a=os.getenv("windir")if a~=nil then return true else return false end end
-local is_windows = check_if_windows()
-
-local function create_directory(directory_path)
-	local args = {"mkdir", directory_path}
-	if is_windows then args = {"powershell", "-NoProfile", "-Command", "mkdir", directory_path} end
-	local res = mp.utils.subprocess({ args = args, cancellable = false })
-	if res.status ~= 0 then
-		mp.msg.error("Failed to create directory: " .. directory_path)
+local function create_folder(path)
+	local args
+	if package.config:sub(1,1) == '\\' then
+		-- Windows: normalize slashes and use 'mkdir' with '/S' for nested folders
+		local win_path = path:gsub("/", "\\")
+		args = { "cmd", "/c", "mkdir", win_path }
 	else
-		mp.msg.info("Directory created successfully: " .. directory_path)
+		-- Unix/macOS/Linux
+		args = { "mkdir", "-p", path }
+	end
+
+	local res = mp.utils.subprocess({ args = args })
+	if res.status == 0 then
+		mp.msg.info("Successfully created folder: " .. path)
+	else
+		mp.msg.error("Failed to create folder: " .. path)
 	end
 end
 
 local function check_paths(d, suffix, web_path_save)
-	local result_path = mp.utils.join_path(full_path .. "/", d.infile_noext .. suffix .. d.ext)
+	local result_path = mp.utils.join_path(full_path .. "/", d.infile_noext .. suffix .. ".mp4")
 	if (mp.utils.readdir(full_path) == nil) then
-		if not is_windows then
-			local sub_full_path = mp.utils.split_path(full_path)
-			create_directory(sub_full_path) -- required for linux as it cannot create mpv/clips/
-		end
-		create_directory(full_path)
+		create_folder(full_path)
 	end
 	if web_path_save then return web_path_save .. " " .. suffix .. web_ext end
 	return result_path
@@ -184,6 +196,7 @@ ACTIONS.COPY = function(d)
 end
 
 ACTIONS.COMPRESS = function(d)
+	if options.encoding_type == "av1" then options.compress_size = options.compress_size * 1.2 end
 	local target_bitrate = ((options.compress_size * 8192) / d.duration * 0.9) -- Video bitrate (KB)
 	mp.msg.info("Theoretical bitrate: " .. target_bitrate)
 
@@ -202,46 +215,69 @@ ACTIONS.COMPRESS = function(d)
 	mp.msg.info("Using bitrate: " .. target_bitrate)
 
 	local file_extra_suffix = "_FROM_" .. d.start_time_hms .. "_TO_" .. d.end_time_hms .. " (compress)"
-	local result_path = mp.utils.join_path(d.indir, d.infile_noext .. file_extra_suffix .. d.ext)
+	local result_path = mp.utils.join_path(d.indir, d.infile_noext .. file_extra_suffix .. ".mp4")
 	if options.save_to_directory then
 		result_path = check_paths(d, file_extra_suffix)
 	end
 
 	local video_height = mp.get_property_number("height")
+
+	-- Start with common args
 	local args = {
-		"ffmpeg",
-		"-nostdin", "-y",
-		"-loglevel", "error",
+		"ffmpeg", "-nostdin", "-y", "-loglevel", "error",
 		"-ss", d.start_time,
 		"-t", d.duration,
-		"-i", d.inpath,
-		"-pix_fmt", "yuv420p",
-		"-c:v", "libx264",
-		"-b:v", target_bitrate .. "k",
-		"-c:a", "copy",
-		result_path
+		"-i", d.inpath
 	}
 
-	if video_height then
-		if video_height > options.resolution then
-			local res_line = "scale=trunc(oh*a/2)*2:" .. options.resolution
-			target_bitrate = target_bitrate
-			args = {
-				"ffmpeg",
-				"-nostdin", "-y",
-				"-loglevel", "error",
-				"-ss", d.start_time,
-				"-t", d.duration,
-				"-i", d.inpath,
-				"-vf", res_line,
-				"-pix_fmt", "yuv420p",
-				"-c:v", "libx264",
-				"-b:v", target_bitrate .. "k",
-				"-c:a", "copy",
-				result_path
-			}
-		end
+	if video_height and options.shrink_resolution and video_height > options.target_resolution then
+		local res_line = "scale=trunc(oh*a/2)*2:" .. options.target_resolution
+		table.insert(args, "-vf")
+		table.insert(args, res_line)
 	end
+
+	if options.encoding_type == "av1" then
+		-- AV1 using libsvtav1
+		table.insert(args, "-c:v")
+		table.insert(args, "libsvtav1")
+		table.insert(args, "-b:v")
+		table.insert(args, target_bitrate .. "k")
+		table.insert(args, "-svtav1-params")
+		table.insert(args, "rc=1")
+		table.insert(args, "-preset")
+		table.insert(args, tostring(options.av1_preset or 6)) -- default preset 6
+		table.insert(args, "-c:a")
+		table.insert(args, "libopus")
+		table.insert(args, "-b:a")
+		table.insert(args, "128k")
+	elseif options.encoding_type == "h265" then
+		-- H.265 using libx265
+		table.insert(args, "-c:v")
+		table.insert(args, "libx265")
+		table.insert(args, "-b:v")
+		table.insert(args, target_bitrate .. "k")
+		table.insert(args, "-vtag")
+		table.insert(args, "hvc1")
+		table.insert(args, "-pix_fmt")
+		table.insert(args, "yuv420p")
+		table.insert(args, "-c:a")
+		table.insert(args, "aac")
+		table.insert(args, "-b:a")
+		table.insert(args, "128k")
+	else
+		-- Default to x264
+		table.insert(args, "-pix_fmt")
+		table.insert(args, "yuv420p")
+		table.insert(args, "-c:v")
+		table.insert(args, "libx264")
+		table.insert(args, "-b:v")
+		table.insert(args, target_bitrate .. "k")
+		table.insert(args, "-c:a")
+		table.insert(args, "copy")
+	end
+
+	-- Output path
+	table.insert(args, result_path)
 
 	print("Saving clip...")
 	mp.command_native_async({
@@ -255,7 +291,7 @@ end
 
 ACTIONS.ENCODE = function(d)
 	local file_extra_suffix = "_FROM_" .. d.start_time_hms .. "_TO_" .. d.end_time_hms .. " (encode)"
-	local result_path = mp.utils.join_path(d.indir, d.infile_noext .. file_extra_suffix .. d.ext)
+	local result_path = mp.utils.join_path(d.indir, d.infile_noext .. file_extra_suffix .. ".mp4")
 	if (options.save_to_directory) then result_path = check_paths(d, file_extra_suffix) end
 	local args = {
 		"ffmpeg",

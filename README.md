@@ -5,13 +5,27 @@
 My personal [mpv](https://mpv.io/) config.
 
 > [!NOTE]
-> Releases of the [modernX](https://github.com/zydezu/modernX) script are in a seperate repository - see here [https://github.com/zydezu/ModernX/releases](https://github.com/zydezu/ModernX/releases).
+> Releases of the [modernx](https://github.com/zydezu/modernx) script are in a seperate repository - see here [https://github.com/zydezu/ModernX/releases](https://github.com/zydezu/ModernX/releases).
 
-## Usage
+## How to Use
 
 Use `git clone https://github.com/zydezu/mpvconfig mpv`, and place it in the relevant directory. This will be typically located at `\%APPDATA%\mpv\` on Windows and `~/.config/mpv/` on Linux/MacOS.
 
+### Flatpak Instructions (from https://github.com/zydezu/mpvconfig/issues/21)
+
+Use `mkdir -p ~/.var/app/io.mpv.Mpv/config` to make the mpv configuration directory for the first time
+
+`cd ~/.var/app/io.mpv.Mpv/config`
+
+`git clone https://github.com/zydezu/mpvconfig mpv` to clone the config files as `mpv/`
+
+`flatpak override --user io.mpv.Mpv --filesystem=host`, needed for mpv flatpak to access host filesystem, so screenshots and lyric downloads can be saved
+
 See the [Files section](https://mpv.io/manual/master/#files) in mpv's manual for more information.
+
+## Note about Audio
+![2025-07-05_15-15-16_411_ApplicationFrameHost](https://github.com/user-attachments/assets/6e457e40-d1ca-4e9e-bce6-a309d09ce091)
+For files with 5.1 or 7.1 surround sound, you may need to set `Audio enhancements` to `Off` in the windows sound settings to hear all the audio channels properly.
 
 ## Scripts and Associated Keybinds
 
@@ -22,8 +36,9 @@ Please note that many of these scripts have been slightly modified from their in
 | [autoloop](https://github.com/zydezu/mpvconfig/blob/main/scripts/autoloop.lua) loops files by default that are smaller than a set duration | None |
 | [autolyrics](https://github.com/zydezu/mpvconfig/blob/main/scripts/autolyrics.lua) tries to download lyrics and display them for said file | **Alt+m** - Request lyrics from musixmatch then netease if that fails<br>**Alt+n** - Request lyrics only from netease<br>**Alt+o** - Set lyrics start point to the current timestamp (if lyrics need to be synced) |
 | [copypaste](https://github.com/zydezu/mpvconfig/blob/main/scripts/copypaste.lua) Copy and paste file paths, URLs and timestamps | **Ctrl+c** - Copy file path or URL to clipboard<br>**Ctrl+v** - Paste file path or URL and play it<br>**o** - Open file location or URL in browser |
-| [detectdualsubs](https://github.com/zydezu/mpvconfig/blob/main/scripts/detectdualsubs.lua) Detects if there are two existing subtitles, one being an original script and the other being a translation (eg: English and Japanese subtitles) and displays them both on screen | **Ctrl+b** - Check for dual subs again (useful if subtitle tracks were changed) |
-| [modernx](https://github.com/zydezu/modernx) a modern OSC for mpv with many additional features | **x** - Cycle through audio tracks <br>**c** - Cycle through subtitle tracks <br>**p** - Pin or unpin the window <br>**Tab** - Show chapter list <br> For more: [See repository](https://github.com/zydezu/modernx#buttons) |
+| [detectdualsubs](https://github.com/zydezu/mpvconfig/blob/main/scripts/detectdualsubs.lua) Detects if there are two existing subtitles, one being an original script and the other being a translation (eg: English and Japanese subtitles) and displays them both on screen | **Ctrl+x** - Toggle dual subs on or off |
+| [loadaudiotracks](https://github.com/zydezu/mpvconfig/blob/main/scripts/loadaudiotracks.lua) Allows multiple audio tracks to be selected and played together | **Ctrl+z** - Toggle another audio track |
+| [modernx](https://github.com/zydezu/modernx) a modern OSC for mpv with many additional features | **z** - Cycle through audio tracks <br>**x** - Cycle through subtitle tracks <br>**p** - Pin or unpin the window <br>**Tab** - Show chapter list <br>**Ctrl+s** - Shuffle the current playlist <br>For more: [See repository](https://github.com/zydezu/modernx#buttons) |
 | [mpvcut](https://github.com/zydezu/mpvconfig/blob/main/scripts/mpvcut.lua) allows clipping a segment of a video | **z** - Mark start segment <br> **z (again)** - Clip the video <br> **Shift+z** - Cancel the clip <br> **a** - Change mode (copy, encode, compress) |
 | [playlistmanager](https://github.com/jonniek/mpv-playlistmanager) shows playlists | **\\ or Shift+Enter** - Show playlist |
 | [screenshotfolder](https://github.com/zydezu/mpvconfig/blob/main/scripts/screenshotfolder.lua) saves screenshots to a designated folder | **s** - Take a screenshot |
@@ -33,6 +48,66 @@ Please note that many of these scripts have been slightly modified from their in
 | [input.conf](https://github.com/zydezu/mpvconfig/blob/main/input.conf) an input configuration file | **-** - Decrease subtitle font size <br> **+** - Increase subtitle font size <br> **Scroll wheel** - Change volume |
 
 ## Updates
+
+### 2025-08-19
+
+- FIX: add back `sponsorblock.lua`
+- FIX: remove millisecond workaround in `autolyrics.lua`
+
+### 2025-08-15
+
+- FIX: stop `thumbfast.lua` throwing errors
+
+### 2025-08-11
+
+- FIX: make seeking faster for longer videos
+
+### 2025-08-10
+
+- FEAT: add the options `show_top_mark` and `show_bottom_mark` to `modernx.lua`
+
+### 2025-08-07
+
+- FEAT: add `livechat.lua`
+
+### 2025-08-03
+
+- FIX: fix HDR tonemapping on `thumbfast.lua` looking weird
+- FIX: update `thumbfast.lua` to upstream
+
+### 2025-07-14
+
+- FEAT: added `updatechecker.lua`, you can disable it by changing the `update_checker` option
+
+### 2025-07-13
+
+- FEAT: added `encoding_type` as an option to `mpvcut.lua`, the supported options are `h264`, `h265` and `av1`. `h265` is the default
+- FIX: force `mpvcut.lua` to encode/compress files as `.mp4`
+
+### 2025-07-08
+
+- FIX: `Ctrl+x` now toggles dual subtitles in `detectdualsubs.lua` instead of only forcing them on
+- FIX: `mpvcut.lua` now uses `a` to select cuts, `Shift+a` to cycle cut modes and `Ctrl+a` to cancel
+- FIX: `modernx.lua` now uses `z` and `x` to cycle through audio and subtitle tracks respectively
+- FEAT: added `loadaudiotracks.lua` to allow multiple audio tracks to be played at the same time
+
+### 2025-07-06
+
+- FEAT: add `copy_youtube_timestamp` as an option to `copypaste.lua`, that copies YouTube links with the current timestamp to be pasted
+
+### 2025-07-05
+
+- FIX: refine shuffling playlist in `modernx.lua`, you can now shuffle a playlist with `Ctrl+s` or by right-clicking the play/pause button
+- FIX: `autolyrics.lua` and `mpvcut.lua` failing to create directories on linux
+
+### 2025-06-29
+
+- Optimised code
+
+### 2025-06-25
+
+- FIX: fix splitUTF8 in `modernx.lua`, splitting CJK characters in the clickable description properly
+- FEAT: create autosubfontchange.lua, which changes the subtitle font depending on the language detected in the subtitles
 
 ### 2025-06-24
 
@@ -45,7 +120,7 @@ Please note that many of these scripts have been slightly modified from their in
 ### 2025-05-19
 
 - FIX: implement https://github.com/zydezu/mpvconfig/issues/18, adding `save_location`, `time_stamp_format` and `save_based_on_chapter_name` as options in `screenshotfolder.lua`
-- FIX: implement https://github.com/zydezu/ModernX/issues/66, adding `fade_transparency_strength` and `window_fade_transparency_strength` as options to `modernX`, this also removes the option `titlebarbox`
+- FIX: implement https://github.com/zydezu/ModernX/issues/66, adding `fade_transparency_strength` and `window_fade_transparency_strength` as options to `modernx`, this also removes the option `titlebarbox`
 
 ### 2025-06-01
 
@@ -77,7 +152,7 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2025-03-11
 
-- FIX: audio/tracklist indicator not showing selected track correctly in `modernX.lua`
+- FIX: audio/tracklist indicator not showing selected track correctly in `modernx.lua`
 - FIX: changes to Japanese lyric detection in `autolyrics.lua`
 
 ### 2025-02-09
@@ -86,7 +161,7 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2025-01-25
 
-- FIX: sponsorblock segments not rendering properly in modernX
+- FIX: sponsorblock segments not rendering properly in modernx
 
 ### 2025-01-21
 
@@ -97,12 +172,12 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2025-01-17
 
-- FEATURE: added coloured segments on the progress bar, like on Youtube with SponsorBlock to `modernX.lua` - NOTE: requires a custom version of sponsorblock.lua [https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua)
+- FEATURE: added coloured segments on the progress bar, like on Youtube with SponsorBlock to `modernx.lua` - NOTE: requires a custom version of sponsorblock.lua [https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua)
 - This adds the following options: `show_sponsorblock_segments`, `add_sponsorblock_chapters`, `sponsorblock_sponsor_color`, `sponsorblock_intro_color`, `sponsorblock_outro_color`, `sponsorblock_interaction_color`, `sponsorblock_selfpromo_color` and `sponsorblock_filler_color`
-- Fix `seekbar_cache_color` to `modernX.lua`
-- Added `progress_bar_height` to `modernX.lua`
+- Fix `seekbar_cache_color` to `modernx.lua`
+- Added `progress_bar_height` to `modernx.lua`
 - FIX: fix thumbnail border clipping through text weird
-- FEAT: `modernX.lua` now sets the tick rate to the monitors refresh rate
+- FEAT: `modernx.lua` now sets the tick rate to the monitors refresh rate
 - FIX: fix state.title_bar not being respected after pinning
 ![image](https://github.com/user-attachments/assets/a7dd23bb-f59e-4f0a-bbcb-b9c5c759e802)
 
@@ -156,8 +231,8 @@ Please note that many of these scripts have been slightly modified from their in
 - Set `mpvcut.lua` default compress size target to 9.00MB (THANKS DISCORD >~<0)
 - Added `AOTFShinGoProMedium.otf` to the fonts folder as it is used in `mpv.conf`
 - Improved descriptions
-- Add fallback for chapters with no names in `modernX.lua` to prevent a crash
-- Add buffer indicator on `modernX.lua`
+- Add fallback for chapters with no names in `modernx.lua` to prevent a crash
+- Add buffer indicator on `modernx.lua`
   
 ![58-038 jpeg](https://github.com/user-attachments/assets/12d948aa-c623-4e45-8363-b2d520af4b4c)<br>
 ![tartarus](https://github.com/user-attachments/assets/835f5585-63a4-4605-8b6b-e075e3cc7600)<br>
@@ -191,7 +266,7 @@ Please note that many of these scripts have been slightly modified from their in
 
 - Implement [https://github.com/zydezu/ModernX/pull/58](https://github.com/zydezu/ModernX/pull/58)
 - Implement [https://github.com/zydezu/ModernX/pull/59](https://github.com/zydezu/ModernX/pull/59)
-- Add `dynamictimeformat` option to `modernX.lua`
+- Add `dynamictimeformat` option to `modernx.lua`
 
 ### 2024-10-17
 
@@ -216,9 +291,9 @@ Please note that many of these scripts have been slightly modified from their in
 ### 2024-08-13
 
 - Changed some configs
-- Added an option for a screenshot button to `modernX.lua` [https://github.com/zydezu/ModernX/pull/40](https://github.com/zydezu/ModernX/pull/40)
+- Added an option for a screenshot button to `modernx.lua` [https://github.com/zydezu/ModernX/pull/40](https://github.com/zydezu/ModernX/pull/40)
 - Update `screenshotfolder.lua` to not include file extensions in folder directories
-- Improved YouTube comment parsing and viewing in `modernX.lua`
+- Improved YouTube comment parsing and viewing in `modernx.lua`
 
 ### 2024-08-02
 
@@ -237,7 +312,7 @@ Please note that many of these scripts have been slightly modified from their in
 - [`mpvcut.lua`](https://github.com/zydezu/mpvconfig/blob/main/scripts/mpvcut.lua) now stops overwriting previously cut files
 - Fixed `autoloop` not staying disabled over a playlist of files
 - Implement [https://github.com/dexeonify/mpv-config/commit/583faf0](https://github.com/dexeonify/mpv-config/commit/583faf0)
-- In modernX, `shift+left click` on the seekbar now scrubs to the exact position, whilst `left click` now scrubs to the keyframe position (faster)
+- In modernx, `shift+left click` on the seekbar now scrubs to the exact position, whilst `left click` now scrubs to the keyframe position (faster)
 
 ### 2024-07-05
 
@@ -308,8 +383,8 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2024-04-28
 
-- Added `descriptionfontsize` to modernX
-- Changed default font size in modernX
+- Added `descriptionfontsize` to modernx
+- Changed default font size in modernx
 - Enable thumbfast on YouTube videos (enabling the `network` option)
 
 #### Default font changes on windows
@@ -322,7 +397,7 @@ Please note that many of these scripts have been slightly modified from their in
 
 - Update default font settings
 - Tweaked `dynamictitle` in ModernX to be cleaner
-- Added `automatickeyframemode` and `automatickeyframelimit` to modernX, resolving [https://github.com/zydezu/ModernX/issues/23](https://github.com/zydezu/ModernX/issues/23)
+- Added `automatickeyframemode` and `automatickeyframelimit` to modernx, resolving [https://github.com/zydezu/ModernX/issues/23](https://github.com/zydezu/ModernX/issues/23)
 
 ### 2024-04-24
 
@@ -359,17 +434,17 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2024-03-20
 
-- Fix yt descriptions with % crashing modernX
-- Fix command message placement in modernX
+- Fix yt descriptions with % crashing modernx
+- Fix command message placement in modernx
 - Made description splitting consistent between online and local videos
 - Added the ability to toggle the persistent progress bar, with the `b` key, if `persistentprogresstoggle` is enabled
 
 ### 2024-02-24
 
-- Merged [https://github.com/zydezu/ModernX/pull/10](https://github.com/zydezu/ModernX/pull/10), fixing some formatting in `modernX`
-- Merged [https://github.com/zydezu/ModernX/pull/11](https://github.com/zydezu/ModernX/pull/11), updaing the audio/subtitle icons in `modernX`
+- Merged [https://github.com/zydezu/ModernX/pull/10](https://github.com/zydezu/ModernX/pull/10), fixing some formatting in `modernx`
+- Merged [https://github.com/zydezu/ModernX/pull/11](https://github.com/zydezu/ModernX/pull/11), updaing the audio/subtitle icons in `modernx`
 - Fix reply icon
-- Merged [https://github.com/zydezu/ModernX/pull/12](https://github.com/zydezu/ModernX/pull/12), adding the option `keybindings` to `modernX`
+- Merged [https://github.com/zydezu/ModernX/pull/12](https://github.com/zydezu/ModernX/pull/12), adding the option `keybindings` to `modernx`
 
 ### 2024-02-15
 
@@ -384,18 +459,18 @@ Please note that many of these scripts have been slightly modified from their in
 
 ### 2024-01-25
 
-- Made switching between web videos in playlists in `modernX` more seamless, instantly clearing the description
-- Improved the description string splitting functions in `modernX`
+- Made switching between web videos in playlists in `modernx` more seamless, instantly clearing the description
+- Improved the description string splitting functions in `modernx`
 
 ### 2024-01-23
 
-- Added `downloadpath` in `modernX`, fixing [https://github.com/zydezu/ModernX/issues/4](https://github.com/zydezu/ModernX/issues/4)
+- Added `downloadpath` in `modernx`, fixing [https://github.com/zydezu/ModernX/issues/4](https://github.com/zydezu/ModernX/issues/4)
 - Fixed CJK characters in video description and uploader name, fixing [https://github.com/zydezu/mpvconfig/issues/12]
 - Added an experimental toggle to view comments of a video (very unstable)
 
 ### 2024-01-15
 
-- Fixed fetching dislikes via the YouTube Dislike API in `modernX` and screenshotting in `screenshotfolder.lua` when viewing YouTube short 'share' links, along with the `dynamictitle` option
+- Fixed fetching dislikes via the YouTube Dislike API in `modernx` and screenshotting in `screenshotfolder.lua` when viewing YouTube short 'share' links, along with the `dynamictitle` option
 - Updated dislike formatting and error checking
 
 ### 2024-01-14
@@ -551,7 +626,7 @@ end
 
 ### 2023-08-07
 
-- Fixed m3u files crashing `modernX.lua`
+- Fixed m3u files crashing `modernx.lua`
 
 ### 2023-08-06
 

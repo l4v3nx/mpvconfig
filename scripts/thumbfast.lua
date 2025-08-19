@@ -39,7 +39,7 @@ local options = {
     quit_after_inactivity = 0,
 
     -- Enable on network playback
-    network = true,
+    network = false,
 
     -- Enable on audio playback
     audio = false,
@@ -61,15 +61,16 @@ mp.options.read_options(options)
 local properties = {}
 local pre_0_30_0 = mp.command_native_async == nil
 local pre_0_33_0 = true
+local support_media_control = mp.get_property_native("media-controls") ~= nil
 
 local function subprocess(args, async, callback)
     callback = callback or function() end
 
     if not pre_0_30_0 then
         if async then
-            return mp.command_native_async({name = "subprocess", playback_only = true, args = args}, callback)
+            return mp.command_native_async({name = "subprocess", playback_only = true, args = args, env = "PATH="..os.getenv("PATH")}, callback)
         else
-            return mp.command_native({name = "subprocess", playback_only = false, capture_stdout = true, args = args})
+            return mp.command_native({name = "subprocess", playback_only = false, capture_stdout = true, args = args, env = "PATH="..os.getenv("PATH")})
         end
     else
         if async then
@@ -274,6 +275,12 @@ end
 options.scale_factor = math.floor(options.scale_factor)
 
 local mpv_path = options.mpv_path
+local frontend_path
+
+if mpv_path == "mpv" and os_name == "windows" then
+    frontend_path = mp.get_property_native("user-data/frontend/process-path")
+    mpv_path = frontend_path or mpv_path
+end
 
 if mpv_path == "mpv" and os_name == "darwin" and unique then
     -- TODO: look into ~~osxbundle/
@@ -467,6 +474,10 @@ local function spawn(time)
         table.insert(args, "--sws-allow-zimg=no")
     end
 
+    if support_media_control then
+        table.insert(args, "--media-controls=no")
+    end
+
     if os_name == "darwin" and properties["macos-app-activation-policy"] then
         table.insert(args, "--macos-app-activation-policy=accessory")
     end
@@ -515,18 +526,18 @@ local function spawn(time)
                                     force_disabled = true
                                     info(real_w or effective_w, real_h or effective_h)
                                 end
-                                mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
+                                -- mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
                                 mp.commandv("script-message-to", "implay", "show-message", "thumbfast initial setup", "Set mpv_path=PATH_TO_ImPlay in thumbfast config:\n" .. string.gsub(mp.command_native({"expand-path", "~~/script-opts/thumbfast.conf"}), "[/\\]", path_separator).."\nand restart ImPlay")
                             end
                         else
-                            mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
-                            if os_name == "windows" then
+                            -- mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
+                            if os_name == "windows" and frontend_path == nil then
                                 mp.commandv("script-message-to", "mpvnet", "show-text", "thumbfast: ERROR! install standalone mpv, see README", 5000, 20)
                                 mp.commandv("script-message", "mpv.net", "show-text", "thumbfast: ERROR! install standalone mpv, see README", 5000, 20)
                             end
                         end
                     else
-                        mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
+                        -- mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
                         -- found ImPlay but not defined in config
                         mp.commandv("script-message-to", "implay", "show-message", "thumbfast", "Set mpv_path=PATH_TO_ImPlay in thumbfast config:\n" .. string.gsub(mp.command_native({"expand-path", "~~/script-opts/thumbfast.conf"}), "[/\\]", path_separator).."\nand restart ImPlay")
                     end
