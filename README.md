@@ -49,6 +49,30 @@ Please note that many of these scripts have been slightly modified from their in
 
 ## Updates
 
+### 2025-08-28
+
+- FEAT: added the ability to clip as `.gif` or `.avif` in `mpvcut.lua`, you can choose which with the `gif_encoding_type` option
+
+### 2025-08-27
+
+- FIX: optimise `screenshotfolder.lua`
+
+### 2025-08-26
+
+- FIX: fix performance issues
+
+### 2025-08-23
+
+- FIX: improve cutting in `mpvcut.lua`
+
+### 2025-08-22
+
+- FIX: fixed window positions shifting when advancing through a playlist
+
+### 2025-08-21
+
+- FIX: fix `mpvcut.lua` not respecting the `encoding_type` option when encoding a clip
+
 ### 2025-08-19
 
 - FIX: add back `sponsorblock.lua`
