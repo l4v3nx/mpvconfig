@@ -49,6 +49,43 @@ Please note that many of these scripts have been slightly modified from their in
 
 ## Updates
 
+### 2025-09-18
+
+- FEAT: add `av1_animated_crf` as an option in `mpvcut.lua` that controls the quality for animated avif clips
+
+### 2025-09-17
+
+- FIX: added https://github.com/zydezu/mpvconfig/pull/26 double click to fullscreen
+
+### 2025-09-16
+
+- FIX: small text changes
+
+### 2025-09-12
+
+- FIX: fix silly error
+
+### 2025-09-04
+
+- FIX: change autocreate-playlist to same
+- FIX: https://github.com/zydezu/mpvconfig/issues/23
+
+### 2025-09-08
+
+- FIX: add some basic image viewing options
+
+### 2025-09-02
+
+- FIX: edit quality parameters
+
+### 2025-09-01
+
+- FIX: `mpvcut.lua` now encodes/compresses the right audio track, and no longer compresses it
+
+### 2025-08-30
+
+- FIX: fix a typo
+
 ### 2025-08-28
 
 - FEAT: added the ability to clip as `.gif` or `.avif` in `mpvcut.lua`, you can choose which with the `gif_encoding_type` option

@@ -1485,7 +1485,7 @@ end
 
 function check_title()
     local mediatitle = mp.get_property("media-title")
-    mp.set_property("title", mediatitle)
+    mp.set_property("title", mediatitle or "")
 
     if (mp.get_property("filename") ~= mediatitle) and user_opts.dynamic_title then
         user_opts.title = "${media-title}"
@@ -1502,7 +1502,7 @@ function check_title()
     if (mp.get_property("filtered-metadata/by-key/Album_Artist") and mp.get_property("filtered-metadata/by-key/Artist")) then
         if (mp.get_property("filtered-metadata/by-key/Album_Artist") ~= mp.get_property("filtered-metadata/by-key/Artist")) then
             artist = mp.get_property("filtered-metadata/by-key/Artist") .. ", " .. mp.get_property("filtered-metadata/by-key/Album_Artist")
-            tempartistclicktext = "Contributing artists: " .. mp.get_property("filtered-metadata/by-key/Artist") .. "\\NAlbum arist: " .. mp.get_property("filtered-metadata/by-key/Album_Artist")
+            tempartistclicktext = "Contributing artists: " .. mp.get_property("filtered-metadata/by-key/Artist") .. "\\NAlbum artist: " .. mp.get_property("filtered-metadata/by-key/Album_Artist")
         end
     end
     local album = mp.get_property("filtered-metadata/by-key/Album")
@@ -3927,11 +3927,9 @@ local function osc_init()
         local duration = mp.get_property_number("duration", 0)
         if duration <= 0 then return "--:--" end
 
-        local time_to_display = state.tc_right_rem and
-            mp.get_property_number("playtime-remaining", 0) or duration
-
-        local prefix = state.tc_right_rem and
-            (user_opts.unicode_minus and UNICODE_MINUS or "-") or ""
+        local time_to_display = state.tc_right_rem and mp.get_property_number("playtime-remaining", 0) or duration
+        if time_to_display < 0 then time_to_display = 0 end
+        local prefix = state.tc_right_rem and (user_opts.unicode_minus and UNICODE_MINUS or "-") or ""
 
         return prefix .. format_time(time_to_display) .. (state.is_live and " • LIVE" or "")
     end
