@@ -10,10 +10,10 @@ mp.utils = require("mp.utils")
 local display_protocol = os.getenv("XDG_SESSION_TYPE")
 
 local options = {
-    copy_keybind = [[
+	copy_keybind = [[
 	["ctrl+c", "ctrl+C", "meta+c", "meta+C"]
 	]],
-    paste_keybind = [[
+	paste_keybind = [[
     ["ctrl+v", "ctrl+V", "meta+v", "meta+V"]
     ]],
     open_keybind = "o",
@@ -36,14 +36,22 @@ options.paste_keybind = mp.utils.parse_json(options.paste_keybind)
 
 local device = "linux"
 if os.getenv("windir") ~= nil then
-    device = "windows"
-elseif os.execute '[ -d "/Applications" ]' == 0 and os.execute '[ -d "/Library" ]' == 0 or os.execute '[ -d "/Applications" ]' == true and os.execute '[ -d "/Library" ]' == true then
-    device = "mac"
+	device = "windows"
+elseif
+	os.execute('[ -d "/Applications" ]') == 0 and os.execute('[ -d "/Library" ]') == 0
+	or os.execute('[ -d "/Applications" ]') == true and os.execute('[ -d "/Library" ]') == true
+then
+	device = "mac"
 end
 
 local function file_exists(name)
-    local f = io.open(name, "r")
-    if f ~= nil then io.close(f) return true else return false end
+	local f = io.open(name, "r")
+	if f ~= nil then
+		io.close(f)
+		return true
+	else
+		return false
+	end
 end
 
 local function bind_keys(keys, name, func, opts)
@@ -85,13 +93,16 @@ local function set_clipboard(text)
                 }
                 Add-Type -AssemblyName PresentationCore
                 [System.Windows.Clipboard]::SetText("%s")
-            }]], text)
-        } })
-    elseif device == "mac" then
-        pipe = io.popen("pbcopy","w")
-        pipe:write(text)
-        pipe:close()
-    end
+            }]],
+					text
+				),
+			},
+		})
+	elseif device == "mac" then
+		pipe = io.popen("pbcopy", "w")
+		pipe:write(text)
+		pipe:close()
+	end
 end
 
 local function get_clipboard()
@@ -122,55 +133,55 @@ local function get_clipboard()
 end
 
 local function is_url(s)
-    local url_pattern = "^[%w]+://[%w%.%-_]+%.[%a]+[-%w%.%-%_/?&=]*"
-    return string.match(s, url_pattern) ~= nil
+	local url_pattern = "^[%w]+://[%w%.%-_]+%.[%a]+[-%w%.%-%_/?&=]*"
+	return string.match(s, url_pattern) ~= nil
 end
 
 local function add_item(name, file)
-    if mp.get_property_number("playlist-count", 0) == 0 then
-        mp.commandv("loadfile", file)
-    else
-        mp.osd_message("Added " .. name .. " to playlist")
-        mp.commandv("loadfile", file, "append-play")
-    end
+	if mp.get_property_number("playlist-count", 0) == 0 then
+		mp.commandv("loadfile", file)
+	else
+		mp.osd_message("Added " .. name .. " to playlist")
+		mp.commandv("loadfile", file, "append-play")
+	end
 end
 
 local function is_timestamp(str)
-    local pattern = "^%d+:%d+$" -- Matches "1:05", "0:54", "12:05"
+	local pattern = "^%d+:%d+$" -- Matches "1:05", "0:54", "12:05"
 
-    if string.match(str, pattern) then
-        return true
-    else
-        pattern = "^%d+:%d+:%d+$" -- Matches "1:12:02", "119:14"
-        if string.match(str, pattern) then
-            return true
-        else
-            return false
-        end
-    end
+	if string.match(str, pattern) then
+		return true
+	else
+		pattern = "^%d+:%d+:%d+$" -- Matches "1:12:02", "119:14"
+		if string.match(str, pattern) then
+			return true
+		else
+			return false
+		end
+	end
 end
 
 local function convert_timestamp(timestamp)
-    local hours, minutes, seconds = 0, 0, 0
+	local hours, minutes, seconds = 0, 0, 0
 
-    local parts = {}
-    for part in string.gmatch(timestamp, "%d+") do
-        table.insert(parts, tonumber(part))
-    end
+	local parts = {}
+	for part in string.gmatch(timestamp, "%d+") do
+		table.insert(parts, tonumber(part))
+	end
 
-    if #parts == 2 then
-        minutes = parts[1]
-        seconds = parts[2]
-    elseif #parts == 3 then
-        hours = parts[1]
-        minutes = parts[2]
-        seconds = parts[3]
-    else
-        return nil -- Invalid format
-    end
+	if #parts == 2 then
+		minutes = parts[1]
+		seconds = parts[2]
+	elseif #parts == 3 then
+		hours = parts[1]
+		minutes = parts[2]
+		seconds = parts[3]
+	else
+		return nil -- Invalid format
+	end
 
-    local total_seconds = hours * 3600 + minutes * 60 + seconds
-    return total_seconds
+	local total_seconds = hours * 3600 + minutes * 60 + seconds
+	return total_seconds
 end
 
 local function copy()
@@ -234,42 +245,43 @@ local function paste()
 end
 
 local function open()
-    -- for ubuntu
-    local url_browser_linux_cmd = "xdg-open \"$url\""
-    local file_browser_linux_cmd = "dbus-send --print-reply --dest=org.freedesktop.FileManager1 /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:\"file:$path\" string:\"\""
-    local url_browser_macos_cmd = "open \"$url\""
-    local file_browser_macos_cmd = "open -a Finder -R \"$path\""
+	-- for ubuntu
+	local url_browser_linux_cmd = 'xdg-open "$url"'
+	local file_browser_linux_cmd =
+		'dbus-send --print-reply --dest=org.freedesktop.FileManager1 /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:"file:$path" string:""'
+	local url_browser_macos_cmd = 'open "$url"'
+	local file_browser_macos_cmd = 'open -a Finder -R "$path"'
 
-    local path = mp.get_property("path")
-    local cmd = ""
-    if is_url(path) then
-        if device == "linux" then
-            cmd = url_browser_linux_cmd
-        elseif device == "windows" then
-            local ret = mp.command_native_async({
-                name = "subprocess",
-                args = {"powershell","start",path}
-            })
-        elseif device == "mac" then
-            cmd = url_browser_macos_cmd
-        end
-        cmd = cmd:gsub("$url", path)
-    else
-        if device == "linux" then
-            cmd = file_browser_linux_cmd
-        elseif device == "windows" then
-            local ret = mp.command_native_async({
-                name = "subprocess",
-                args = { "explorer", "/select," ,path}
-            })
-        elseif device == "mac" then
-            cmd = file_browser_macos_cmd
-        end
-        cmd = cmd:gsub("$path", path)
-    end
-    if device ~= "windows" then
-        os.execute(cmd)
-    end
+	local path = mp.get_property("path")
+	local cmd = ""
+	if is_url(path) then
+		if device == "linux" then
+			cmd = url_browser_linux_cmd
+		elseif device == "windows" then
+			local ret = mp.command_native_async({
+				name = "subprocess",
+				args = { "powershell", "start", path },
+			})
+		elseif device == "mac" then
+			cmd = url_browser_macos_cmd
+		end
+		cmd = cmd:gsub("$url", path)
+	else
+		if device == "linux" then
+			cmd = file_browser_linux_cmd
+		elseif device == "windows" then
+			local ret = mp.command_native_async({
+				name = "subprocess",
+				args = { "explorer", "/select,", path },
+			})
+		elseif device == "mac" then
+			cmd = file_browser_macos_cmd
+		end
+		cmd = cmd:gsub("$path", path)
+	end
+	if device ~= "windows" then
+		os.execute(cmd)
+	end
 end
 
 bind_keys(options.copy_keybind, "copy", copy)
