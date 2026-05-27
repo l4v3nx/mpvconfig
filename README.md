@@ -51,7 +51,52 @@ Please note that many of these scripts have been slightly modified from their in
 | [thumbfast](https://github.com/po5/thumbfast) show thumbnails when hovering the progress bar | None |
 | [input.conf](https://github.com/zydezu/mpvconfig/blob/main/input.conf) an input configuration file | **-** - Decrease subtitle font size <br> **+** - Increase subtitle font size <br> **Scroll wheel** - Change volume |
 
+## To-Do
+
+- [x] Fix `mpvcut.lua` copying the resulting file
+- [x] Add folders as an option in `mpvcut.lua`
+
 ## Updates
+
+### 2026-06-23
+
+- FIX: add a format to ytdl-format to allow other web videos (such as Twitch) to play
+
+### 2026-06-22
+
+- FIX: various speed improvements made in `mpv.conf`
+
+### 2026-06-21
+
+- FEAT: add folders as a save option in mpvcut.lua
+- FIX: mpucut.lua now copies the resulting file to the clipboard
+
+### 2026-05-19
+
+- FIX: add `hr-seek=no` to `mpv.conf` to fix various delays and errors upon startup when the video progress was saved at a non-keyframe position
+- FIX: adjust some defaults in `modernx.lua` and make some option descriptions clearer
+
+### 2026-05-17
+
+- FIX: improve `selectformat.lua` configuration, add icons for dropdowns
+
+### 2026-04-25
+
+- FIX: removed `detectdualsubs.lua` as it was rarely used
+- FIX: add `screenshot-high-bit-depth=no` to `mpv.conf` to stop huge screenshots being taken (we can add it back in 10 years when HDR screenshots are supported on social media platforms)
+
+### 2026-04-19
+
+- FIX: use `screen-name` instead of `screen` in mpv.conf
+
+### 2026-04-12
+
+- FIX: improve audio track naming in `modernx.lua`
+
+### 2026-04-07
+
+- FIX: add screen=1 to mpv.conf, which fixes autofit sizing calculations
+using the wrong monitor on some linux systems
 
 ### 2026-03-23
 

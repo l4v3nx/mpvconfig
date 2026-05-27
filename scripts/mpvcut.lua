@@ -14,6 +14,7 @@ local options = {
     -- Save location
     save_to_directory = true,                -- save to 'save_directory' instead of the current folder of the file
     save_directory = "~/Pictures/mpv/clips", -- required for web videos
+    save_to_title_directory = true,          -- save to subdirectory named after the video title
 
     -- Key config
     key_cut = "a",
@@ -61,6 +62,56 @@ local function is_url(s)
     return string.match(s, url_pattern) ~= nil
 end
 
+local function copy_to_clipboard(filepath)
+    local platform = mp.get_property_native("platform")
+    local cmd
+
+    if platform == "windows" then
+        -- Windows: copy file URI to clipboard via PowerShell
+        local uri = "file:///" .. filepath:gsub("\\", "/"):gsub(" ", "%%20")
+        cmd = {
+            "powershell", "-NoProfile", "-Command",
+            string.format("Set-Clipboard -Value '%s'", uri:gsub("'", "''"))
+        }
+    elseif platform == "darwin" then
+        -- macOS: use osascript to set file on clipboard
+        cmd = {
+            "osascript", "-e",
+            string.format("set the clipboard to (POSIX file %q)", filepath)
+        }
+    else
+        -- Linux
+        if os.getenv("WAYLAND_DISPLAY") then
+            -- Wayland: wl-copy with text/uri-list
+            cmd = {
+                "sh", "-c",
+                string.format("printf 'file://%s' | wl-copy --type text/uri-list", filepath)
+            }
+        else
+            -- X11: xclip with text/uri-list
+            cmd = {
+                "sh", "-c",
+                string.format("printf 'file://%s' | xclip -sel c -t text/uri-list", filepath)
+            }
+        end
+    end
+
+    mp.command_native_async({
+        name = "subprocess",
+        args = cmd,
+        playback_only = false,
+        capture_stdout = true,
+        capture_stderr = true,
+    }, function(success, result)
+        if success then
+            mp.msg.info("Copied file URI to clipboard: " .. filepath)
+        else
+            mp.msg.warn("Failed to copy to clipboard")
+        end
+    end)
+end
+
+
 local result = mp.command_native({ name = "subprocess", args = { "ffmpeg" }, playback_only = false, capture_stdout = true, capture_stderr = true })
 if result.status ~= 1 then
     mp.osd_message("FFmpeg failed to run")
@@ -86,11 +137,26 @@ local function get_bitrate()
     end
 end
 
+local function sanitize_filename(name)
+    return name and name:gsub('[\\/:*?"<>|]', '') or ""
+end
+
+local function get_title_subdir()
+    -- Returns the expanded save_directory, optionally with a title subdirectory appended.
+    -- Used for local (non-web) files when save_to_directory is true.
+    if options.save_to_title_directory then
+        local file_name_clean = sanitize_filename(mp.get_property("filename/no-ext"))
+        return mp.command_native({ "expand-path", options.save_directory .. "/" .. file_name_clean })
+    else
+        return full_path
+    end
+end
+
 local function init()
     -- Set save directory path
     if full_path then
-        full_path_save = mp.command_native({ "expand-path", options.save_directory ..
-        "/" .. mp.get_property("media-title") })
+        local file_name_clean = sanitize_filename(mp.get_property("filename/no-ext"))
+
         if (options.use_cache_for_web_videos and is_url(mp.get_property("path"))) then
             local video       = mp.get_property("video-format", "none")
             local audio       = mp.get_property("audio-codec-name", "none")
@@ -121,9 +187,25 @@ local function init()
             elseif (videoID) then
                 youtube_ID = " [" .. videoID .. "]"
             end
-            full_path_save = mp.command_native({ "expand-path", options.save_directory .. "/" ..
-            (string.gsub(mp.get_property("media-title"):sub(1, 100), "^%s*(.-)%s*$:", "%1") .. youtube_ID):gsub(
-                '[\\/:*?"<>|]', "") })
+
+            -- For web videos, full_path_save is the directory clips go into.
+            -- Respect save_to_title_directory here too.
+            if options.save_to_title_directory then
+                full_path_save = mp.command_native({ "expand-path",
+                    options.save_directory .. "/" .. file_name_clean .. youtube_ID })
+            else
+                full_path_save = mp.command_native({ "expand-path",
+                    options.save_directory })
+            end
+        else
+            -- Local file: full_path_save not used for path building (check_paths handles it),
+            -- but set it sensibly for the web-cache branch just in case.
+            if options.save_to_title_directory then
+                full_path_save = mp.command_native({ "expand-path",
+                    options.save_directory .. "/" .. file_name_clean })
+            else
+                full_path_save = full_path
+            end
         end
     end
 
@@ -179,12 +261,20 @@ local function create_folder(path)
 end
 
 local function check_paths(d, suffix, web_path_save, new_ext)
-    local result_path = mp.utils.join_path(full_path .. "/", d.infile_noext .. suffix .. (new_ext or ".mp4"))
-    if (mp.utils.readdir(full_path) == nil) then
-        create_folder(full_path)
+    -- Determine the output directory, respecting save_to_title_directory for local files.
+    local out_dir
+    if web_path_save then
+        -- Web cache path: directory is already baked into web_path_save by init().
+        return web_path_save .. " " .. suffix .. web_ext
     end
-    if web_path_save then return web_path_save .. " " .. suffix .. web_ext end
-    return result_path
+
+    out_dir = get_title_subdir()
+
+    if (mp.utils.readdir(out_dir) == nil) then
+        create_folder(out_dir)
+    end
+
+    return mp.utils.join_path(out_dir .. "/", d.infile_noext .. suffix .. (new_ext or ".mp4"))
 end
 
 ACTIONS = {}
@@ -263,8 +353,9 @@ ACTIONS.ENCODE = function(d)
         name = "subprocess",
         args = args,
         playback_only = false,
-    }, function()
+    }, function(success, result)
         print("Saved clip!")
+        copy_to_clipboard(result_path)
     end)
 end
 
@@ -325,8 +416,9 @@ ACTIONS.ENCODE_GIF = function(d)
         name = "subprocess",
         args = args,
         playback_only = false,
-    }, function()
+    }, function(success, result)
         print("Saved clip!")
+        copy_to_clipboard(result_path)
     end)
 end
 
@@ -373,7 +465,6 @@ ACTIONS.COMPRESS = function(d)
         ff_audio_index = 0
     end
 
-    -- Start with common args
     local args = {
         "ffmpeg", "-nostdin", "-y", "-loglevel", "error",
         "-ss", d.start_time,
@@ -434,8 +525,9 @@ ACTIONS.COMPRESS = function(d)
         name = "subprocess",
         args = args,
         playback_only = false,
-    }, function()
+    }, function(success, result)
         print("Saved clip!")
+        copy_to_clipboard(result_path)
     end)
 end
 
@@ -480,8 +572,9 @@ RUN_WEB_CACHE = function(d)
     command["name"] = "dump-cache"
     command["start"] = d.start_time
     command["end"] = d.end_time
-    mp.command_native_async(command, function()
+    mp.command_native_async(command, function(success, result)
         print("Saved clip!")
+        copy_to_clipboard(command.filename)
     end)
 end
 
