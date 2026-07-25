@@ -1,8 +1,6 @@
 # mpvconfig
 
-<img src="https://github.com/zydezu/mpvconfig/blob/main/img/activity.png?raw=true">
-
-![2024-12-25_23-46-32_598_mpv](https://github.com/user-attachments/assets/e3bd21b2-64d7-41d4-a0b5-bcf5364f042a)
+<img src="https://raw.githubusercontent.com/zydezu/mpvconfig/refs/heads/main/image.png">
 
 My personal [mpv](https://mpv.io/) config.
 
