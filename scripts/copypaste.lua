@@ -10,13 +10,16 @@ mp.utils = require("mp.utils")
 local display_protocol = os.getenv("XDG_SESSION_TYPE")
 
 local options = {
-	copy_keybind = [[
-	["ctrl+c", "ctrl+C", "meta+c", "meta+C"]
-	]],
-	paste_keybind = [[
-    ["ctrl+v", "ctrl+V", "meta+v", "meta+V"]
+    -- Keybinds
+    copy_keybind = [[
+        ["ctrl+c", "ctrl+C", "meta+c", "meta+C"]
+    ]],
+    paste_keybind = [[
+        ["ctrl+v", "ctrl+V", "meta+v", "meta+V"]
     ]],
     open_keybind = "o",
+
+    -- Copy and paste commands
     linux_copy_command = { "xclip", "-silent", "-selection", "clipboard", "-in" },
     linux_paste_command = { "xclip", "-selection", "clipboard", "-o" },
     copy_youtube_timestamp = true,
@@ -69,7 +72,7 @@ local function bind_keys(keys, name, func, opts)
 	end
 end
 
-local function handle_res(res, args)
+local function handle_res(res, _)
 	if not res.error and res.status == 0 then
 		return res.stdout
 	else
@@ -81,7 +84,7 @@ local function set_clipboard(text)
     local pipe
     if device == "linux" then
 		local command = table.concat(options.linux_copy_command, " ")
-		pipe = io.popen(command, "w")
+		pipe = assert(io.popen(command, "w"))
         pipe:write(text)
         pipe:close()
     elseif device == "windows" then
@@ -93,16 +96,13 @@ local function set_clipboard(text)
                 }
                 Add-Type -AssemblyName PresentationCore
                 [System.Windows.Clipboard]::SetText("%s")
-            }]],
-					text
-				),
-			},
-		})
-	elseif device == "mac" then
-		pipe = io.popen("pbcopy", "w")
-		pipe:write(text)
-		pipe:close()
-	end
+            }]], text)
+        } })
+    elseif device == "mac" then
+        pipe = assert(io.popen("pbcopy","w"))
+        pipe:write(text)
+        pipe:close()
+    end
 end
 
 local function get_clipboard()
@@ -186,6 +186,7 @@ end
 
 local function copy()
     local path = mp.get_property("path")
+    if path then path = path:gsub("^%s+", ""):gsub("%s+$", "") end
 
     local function remove_timestamp_from_url(inputpath)
         if type(inputpath) == "string" then
@@ -226,10 +227,11 @@ local function copy()
 end
 
 local function paste()
-    mp.osd_message("Loading...", 10)
+    mp.osd_message("Loading...", 3)
     local clip = get_clipboard()
     if not clip then return end
     clip = clip:gsub("\n", " ")
+    clip = clip:gsub("^%s+", ""):gsub("%s+$", "")
     if not clip then return end
     local clip_file = clip:gsub('"', "")
     if is_url(clip) then
@@ -245,43 +247,36 @@ local function paste()
 end
 
 local function open()
-	-- for ubuntu
-	local url_browser_linux_cmd = 'xdg-open "$url"'
-	local file_browser_linux_cmd =
-		'dbus-send --print-reply --dest=org.freedesktop.FileManager1 /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:"file:$path" string:""'
-	local url_browser_macos_cmd = 'open "$url"'
-	local file_browser_macos_cmd = 'open -a Finder -R "$path"'
+    local path = mp.get_property("path")
+    if not path then return end
 
-	local path = mp.get_property("path")
-	local cmd = ""
-	if is_url(path) then
-		if device == "linux" then
-			cmd = url_browser_linux_cmd
-		elseif device == "windows" then
-			local ret = mp.command_native_async({
-				name = "subprocess",
-				args = { "powershell", "start", path },
-			})
-		elseif device == "mac" then
-			cmd = url_browser_macos_cmd
-		end
-		cmd = cmd:gsub("$url", path)
-	else
-		if device == "linux" then
-			cmd = file_browser_linux_cmd
-		elseif device == "windows" then
-			local ret = mp.command_native_async({
-				name = "subprocess",
-				args = { "explorer", "/select,", path },
-			})
-		elseif device == "mac" then
-			cmd = file_browser_macos_cmd
-		end
-		cmd = cmd:gsub("$path", path)
-	end
-	if device ~= "windows" then
-		os.execute(cmd)
-	end
+    local args
+    if is_url(path) then
+        if device == "windows" then
+            args = { "powershell", "start", path }
+        elseif device == "mac" then
+            args = { "open", path }
+        else -- linux
+            args = { "xdg-open", path }
+        end
+    else
+        if device == "windows" then
+            args = { "explorer", "/select,", path }
+        elseif device == "mac" then
+            args = { "open", "-a", "Finder", "-R", path }
+        else -- linux, for ubuntu
+            args = {
+                "dbus-send", "--print-reply",
+                "--dest=org.freedesktop.FileManager1",
+                "/org/freedesktop/FileManager1",
+                "org.freedesktop.FileManager1.ShowItems",
+                "array:string:file://" .. path,
+                "string:"
+            }
+        end
+    end
+
+    mp.command_native_async({ name = "subprocess", args = args })
 end
 
 bind_keys(options.copy_keybind, "copy", copy)

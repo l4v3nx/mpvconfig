@@ -1,6 +1,6 @@
 # mpvconfig
 
-![2024-12-25_23-46-32_598_mpv](https://github.com/user-attachments/assets/e3bd21b2-64d7-41d4-a0b5-bcf5364f042a)
+<img src="https://raw.githubusercontent.com/zydezu/mpvconfig/refs/heads/main/image.png">
 
 My personal [mpv](https://mpv.io/) config.
 
@@ -49,6 +49,7 @@ Please note that many of these scripts have been slightly modified from their in
 | [selectformat](https://github.com/koonix/mpv-selectformat) allows you to change the quality of internet videos on the fly | **Ctrl+f** - Open format menu <br> Use up and down to choose a resolution, and fold and unfold selections with the arrow keys to see more codec options |
 | [sponsorblock](https://github.com/po5/mpv_sponsorblock) a fully-featured port of SponsorBlock for mpv | [See repository](https://github.com/po5/mpv_sponsorblock?tab=readme-ov-file#usage) |
 | [thumbfast](https://github.com/po5/thumbfast) show thumbnails when hovering the progress bar | None |
+| [unpauseonplaylistchange](https://github.com/zydezu/mpvconfig/blob/main/scripts/unpauseonplaylistchange.lua) automatically resumes playback when moving to another item in the playlist while paused | None |
 | [input.conf](https://github.com/zydezu/mpvconfig/blob/main/input.conf) an input configuration file | **-** - Decrease subtitle font size <br> **+** - Increase subtitle font size <br> **Scroll wheel** - Change volume |
 
 ## To-Do
@@ -58,15 +59,72 @@ Please note that many of these scripts have been slightly modified from their in
 
 ## Updates
 
-### 2026-06-23
+### 2026-07-19
+
+- FEAT: add the ability to open links from the description of YouTube video directly, by using TAB to navigate to the link and ENTER to open it when viewing the full description
+
+### 2026-07-18
+
+- FIX: fix playlists being cleared when `retryonerror.lua` triggers
+
+### 2026-07-16
+
+- FIX: `t` now shows the subtitle transcription
+
+### 2026-07-11
+
+- FEAT: add `unpauseonplaylistchange.lua`, which resumes playback when moving to another playlist item while paused
+
+### 2026-07-10
+
+- FIX: fix auto-generated subtitle tracks being selected by default when real subtitles are already present in `ytsub.lua`
+
+### 2026-07-08
+
+- FIX: `add_sponsorblock_chapters = false` not being respected on YouTube videos without chapters already
+- FIX: fix a sponsorblock seeking issue
+
+### 2026-07-06
+
+- FIX: chapter markers on the seekbar now use their own colors (`chapter_marker_color` and `chapter_marker_current_color`) instead of inheriting the seekbar's progress color
+- FEAT: add `chapter_marker_style` option to `modernx.lua` to change the shape of chapter markers, supporting `triangle`, `bar`, `single-bar` and `gap`
+- FEAT: add `chapter_hover_subtitle` option to `modernx.lua` to show the hovered chapter's name in the chapter title text below the seekbar instead of the main title (this option only applies when thumbfast isn't available)
+
+### 2026-06-28
+
+- FIX: fix automatic_keyframe_mode not working correctly in `modernx.lua`
+
+### 2026-06-27
+
+- FIX: tweak `mpv.conf` to fix GPU memory issues with 8K videos
+- FIX: improved `mpvcut.lua`
+- FIX: indent markers in `selectformat.lua` are now consistent
+
+### 2026-06-26
+
+- FEAT: added GPU encoding support in mpvcut.lua
+
+### 2026-06-20
+
+- FIX: add an AI-resolution tag to videos in `selectformat.lua`
+
+### 2026-05-31
+
+- FIX: fix https://github.com/zydezu/ModernX/issues/23
+- FIX: allow scrollwheel to work on audio/subtitle button
+- FEAT: add `select.lua` menus for selecting audio/subtitle tracks and changing audio output
+- FEAT: add `shift+z`/`shift+c` key bindings to select audio/subtitle tracks, add `TAB` key binding to select chapters
+- FEAT: add more bindings to clicking the media title
+
+### 2026-05-23
 
 - FIX: add a format to ytdl-format to allow other web videos (such as Twitch) to play
 
-### 2026-06-22
+### 2026-05-22
 
 - FIX: various speed improvements made in `mpv.conf`
 
-### 2026-06-21
+### 2026-05-21
 
 - FEAT: add folders as a save option in mpvcut.lua
 - FIX: mpucut.lua now copies the resulting file to the clipboard

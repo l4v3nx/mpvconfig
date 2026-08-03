@@ -1,11 +1,11 @@
--- sponsorblock.lua
---
--- This script skips sponsored segments of YouTube videos
--- using data from https://github.com/ajayyy/SponsorBlock
+--[[
+    sponsorblock.lua by zydezu
+    (https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua)
 
--- this is the version needed for modernX! 
--- https://github.com/zydezu/ModernX
--- https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua
+    * This is the version needed for ModernX (https://github.com/zydezu/ModernX)
+
+    Skips sponsored segments of YouTube videos using data from https://github.com/ajayyy/SponsorBlock
+--]]
 
 local ON_WINDOWS = package.config:sub(1,1) ~= "/"
 
@@ -311,7 +311,7 @@ local function skip_ads(name, pos)
             if options.fast_forward == uuid then return end
             if options.fast_forward == false then
                 if options.show_skip_message then mp.osd_message("[sponsorblock] " .. t.category .. " skipped") end
-                mp.set_property("time-pos", t.end_time)
+                mp.commandv("seek", tostring(t.end_time), "absolute+exact")
             else
                 mp.osd_message("[sponsorblock] skipping " .. t.category)
             end
