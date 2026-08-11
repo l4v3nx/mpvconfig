@@ -46,7 +46,7 @@ mp.register_event("end-file", function(event)
         return
     end
     retry_count = retry_count + 1
-    mp.osd_message(string.format("Load error — retrying (%d/%d)...", retry_count, options.max_retries), 5)
+    mp.osd_message(string.format("Loading error - retrying (%d/%d)...", retry_count, options.max_retries), 5)
 
     -- put a fresh copy where the failed entry was, play it, then drop the old one
     mp.commandv("loadfile", saved_path, "insert-at", saved_pos)
