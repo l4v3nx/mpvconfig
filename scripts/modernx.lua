@@ -48,7 +48,7 @@ local function show_message(_, _) end
 local function bind_keys() end
 local function unbind_keys() end
 local function destroy_scrolling_keys() end
-local function extract_links() end
+local function extract_links(text) end
 local function open_url() end
 local function plain_replace_all() end
 local function apply_link_highlight() end
@@ -80,13 +80,14 @@ local user_opts = {
     -- Language and display
     language = "en",            -- en:English - .json translations need implementing
     font = "mpv-osd-symbols",   -- font for the OSC (default: mpv-osd-symbols or the one set in mpv.conf)
+    icon_style = "modern",      -- icon set used by the buttons: "modern", "solid" or "round"
     layout_option = "original", -- use the original/reduced layout
     idle_screen = true,         -- show mpv logo when idle
     key_bindings = true,        -- register additional key bindings, such as chapter scrubbing, pinning the window
     window_top_bar = "auto",    -- show OSC window top bar: "auto", "yes", or "no" (borderless/fullscreen)
     show_windowed = true,       -- show OSC when windowed
     show_fullscreen = true,     -- show OSC when fullscreen
-    show_on_pause = true,       -- show OSC when paused
+    show_on_pause = false,      -- show OSC when paused
     keep_on_pause = false,      -- disable OSC hide timeout when paused
     green_and_grumpy = false,   -- disable the Santa hat in December
     visibility = "auto",        -- only used at init to set visibility_mode(...)
@@ -162,7 +163,7 @@ local user_opts = {
     volume_control_type = "linear", -- volume scale type: "linear" or "logarithmic"
 
     info_button = false,            -- show info button
-    ontop_button = true,            -- show window on top button
+    ontop_button = false,           -- show window on top button
     screenshot_button = false,      -- show screenshot button
     screenshot_flag = "subtitles",  -- flag for screenshot button: "subtitles", "video", "window", "each-frame"
     -- https://mpv.io/manual/master/#screenshot-commands
@@ -201,10 +202,10 @@ local user_opts = {
     thumbnail_border_outline = "#000000",     -- color of the border outline for thumbnails
 
     fade_alpha = 100,                         -- alpha of the title bar background box
-    fade_blur_strength = 75,                  -- blur strength for the OSC alpha fade - caution: high values can take a lot of CPU time to render
+    fade_blur_strength = 75,                  -- blur strength for the OSC alpha fade, higher values have a smoother fade effect
     fade_transparency_strength = 0,           -- use with "fade_blur_strength = 0" to create a transparency box
     window_fade_alpha = 100,                  -- alpha of the window title bar
-    window_fade_blur_strength = 75,           -- blur strength for the window title bar. caution: high values can take a lot of CPU time to render
+    window_fade_blur_strength = 75,           -- blur strength for the window title bar. higher values have a smoother fade effect
     window_fade_transparency_strength = 0,    -- use with "window_fade_blur_strength = 0" to create a transparency box
     thumbnail_border = 1,                     -- width of the thumbnail border (for thumbfast)
     thumbnail_border_radius = 5,              -- rounded corner radius for thumbnail border (0 to disable)
@@ -216,7 +217,7 @@ local user_opts = {
     hover_effect_for_sliders = false, -- apply hover effects to slider handles
 
     -- Progress bar settings
-    seek_handle_size = 0.8,              -- size ratio of the seekbar handle (range: 0 ~ 1)
+    seek_handle_size = 0,                -- size ratio of the seekbar handle (range: 0 ~ 1)
     seekbar_between_timers = false,      -- moves the seekbar and progress bar between the timers
     seekbar_height = 2,                  -- height of the seekbar
     progress_bar_height = 16,            -- height of the progress bar
@@ -260,9 +261,9 @@ local user_opts = {
     sponsorblock_filler_color = "#7300FF",         -- color for filler content/tangents
 
     -- Experimental
-    show_youtube_comments = false,             -- EXPERIMENTAL - show youtube comments
+    show_youtube_comments = true,              -- EXPERIMENTAL - show youtube comments
     comments_path = "~/Pictures/mpv/comments", -- EXPERIMENTAL - the download path for the comment JSON file
-    FORCE_fix_not_ontop = true,                -- EXPERIMENTAL - try and mitigate https://github.com/zydezu/ModernX/issues/30, https://github.com/akiirui/mpv-handler/issues/48
+    FORCE_fix_not_ontop = false,               -- EXPERIMENTAL - try and mitigate https://github.com/zydezu/ModernX/issues/30, https://github.com/akiirui/mpv-handler/issues/48
 }
 -- read options from config and command-line
 require("mp.options").read_options(user_opts, 'modernx', function(list) update_options(list) end)
@@ -276,7 +277,7 @@ local osc_param = { -- calculated by osc_init()
     areas = {},
 }
 
-local icons = {
+local icons_modern = {
     play = "\238\166\143",
     pause = "\238\163\140",
     replay = "\238\189\191",
@@ -333,6 +334,65 @@ local icons = {
         like = "👍",
     },
 }
+
+-- so retro
+local icons_material = {
+    play = "\239\142\170",
+    pause = "\239\142\167",
+    replay = "\239\142\178",
+
+    previous = "\239\142\181",
+    next = "\239\142\180",
+    rewind = "\239\142\160",
+    forward = "\239\142\159",
+
+    audio = "\239\142\183",
+    subtitle = "\239\140\164",
+
+    volume = {
+        mute = "\239\142\187",
+        quiet = "\239\142\186",
+        low = "\239\142\185",
+        high = "\239\142\188",
+    },
+
+    download = "\239\136\160",
+    download_initiated = "\239\134\185",
+
+    loop_off = "\239\134\181",
+    loop_on = "\239\134\183",
+
+    info = "\239\135\183",
+
+    pinned_off = "\239\142\149",
+    pinned_on = "\239\142\150",
+
+    screenshot = "\239\135\168",
+    playlist = icons_modern.playlist, -- currently unused
+
+    fullscreen = "\239\133\173",
+    fullscreen_exit = "\239\133\172",
+
+    jumpicons = {
+        [5] = { "\239\142\177", "\239\142\163" },
+        [10] = { "\239\142\175", "\239\142\161" },
+        [30] = { "\239\142\176", "\239\142\162" },
+        default = { "\239\142\178", "\239\142\178" }, -- second icon is mirrored in layout()
+    },
+
+    window = icons_modern.window, -- drawn with osc_styles.window_control, not iconfont
+
+    emoticon = icons_modern.emoticon,
+}
+
+local icon_styles = {
+    modern = { font = "fluent-system-icons" },
+    solid = { font = "Material-Design-Iconic-Font" },
+    round = { font = "Material-Design-Iconic-Round" },
+}
+local selected_icon_style = icon_styles[user_opts.icon_style] or icon_styles.modern
+local icons = (user_opts.icon_style == "solid" or user_opts.icon_style == "round")
+    and icons_material or icons_modern
 
 -- Localization
 local language = {
@@ -408,7 +468,7 @@ local max_descsize = 200
 local comments_per_page = 25
 local is_december = os.date("*t").month == 12
 local unicode_minus_symbol = string.char(0xe2, 0x88, 0x92) -- UTF-8 for U+2212 MINUS SIGN
-local iconfont = 'fluent-system-icons'
+local iconfont = selected_icon_style.font
 
 local device = "linux"
 if os.getenv("windir") ~= nil then
@@ -1690,9 +1750,27 @@ local function startupevents()
     mp.set_property_bool("auto-window-resize", false)
 end
 
+local mpv_default_title = "${?media-title:${media-title}}${!media-title:No file} - mpv"
+local title_format = mp.get_property("options/title") or ""
+local user_title_format = (title_format ~= "" and title_format ~= mpv_default_title) and title_format or nil
+local title_suffix = ""
+
+local function window_title_base()
+    if user_title_format then
+        local title = mp.command_native({ "expand-text", user_title_format }) or ""
+        if title ~= "" then return title end
+    end
+    return mp.get_property("media-title") or ""
+end
+
+local function set_window_title()
+    mp.set_property("title", window_title_base() .. title_suffix)
+end
+
 function check_title()
     local mediatitle = mp.get_property("media-title")
-    mp.set_property("title", mediatitle or "")
+    title_suffix = ""
+    set_window_title()
 
     if (mp.get_property("filename") ~= mediatitle) and user_opts.dynamic_title then
         user_opts.title = "${media-title}"
@@ -2262,9 +2340,9 @@ function add_like_count_to_title()
         state.viewcount = add_commas_to_number(state.localDescriptionClick:match('Views: (%d+)'))
         state.likecount = add_commas_to_number(state.localDescriptionClick:match('Likes: (%d+)'))
         if (state.viewcount ~= '' and state.likecount ~= '') then
-            mp.set_property("title", mp.get_property("media-title") ..
-                " | " .. icons.emoticon.view .. state.viewcount ..
-                " | " .. icons.emoticon.like .. state.likecount)
+            title_suffix = " | " .. icons.emoticon.view .. state.viewcount ..
+                " | " .. icons.emoticon.like .. state.likecount
+            set_window_title()
         end
     end
 end
@@ -4900,12 +4978,13 @@ if user_opts.key_bindings then
             if mp.get_property('ontop') == 'yes' then
                 show_message("Pinned window")
                 mp.commandv('set', 'border', "no")
-                mp.set_property("title", mp.get_property("media-title") .. " (Picture-in-Picture)")
+                title_suffix = " (Picture-in-Picture)"
             else
                 show_message("Unpinned window")
                 mp.commandv('set', 'border', "yes")
-                mp.set_property("title", mp.get_property("media-title"))
+                title_suffix = ""
             end
+            set_window_title()
         end
     end);
 
