@@ -1,4 +1,6 @@
 watch_later/
 downloads/
+cache/
+watch_history.jsonl
 script-opts/modernx.conf
 changerefresh.lua
