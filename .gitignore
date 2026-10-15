@@ -4,3 +4,6 @@ cache/
 watch_history.jsonl
 script-opts/modernx.conf
 changerefresh.lua
+scripts/webtorrent.js
+sponsorblock.txt
+*.orig
