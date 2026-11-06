@@ -17,15 +17,15 @@ local options = {
     save_to_title_directory = true,          -- save to subdirectory named after the video title
 
     -- Key bindings
-    key_toggle_crop = "v",   -- enter crop mode; while active, also drops a corner at the mouse position
+    key_toggle_crop = "v",       -- enter crop mode - while active, also drops a corner at the mouse position
     key_cancel_crop = "shift+v", -- exit crop mode / cancel the in-progress selection
     key_cycle_codec = "alt+x",
-    key_cycle_gpu = "alt+c", -- toggle GPU/CPU encoding
+    key_cycle_gpu = "alt+c",     -- toggle GPU/CPU encoding
 
     -- Encode target
     codecs_list = { "h264", "h265", "av1" }, -- list of codecs to cycle through
     encoding_type = "h265",                  -- active codec: h264, h265, or av1
-    gpu_default = true,                      -- start with GPU encoding enabled
+    gpu_default = true,                      -- use GPU encoding
     min_crop_size = 20,                      -- minimum crop width/height, in source pixels
 
     -- Optional resolution cap applied after cropping
@@ -33,10 +33,10 @@ local options = {
     max_resolution = 1080, -- resolution cap (height) if cap_resolution is enabled
 
     -- CPU encoding quality
-    h264_crf = 23, -- lower crf = better quality
-    h265_crf = 28,
+    h264_crf = 28, -- lower crf = better quality
+    h265_crf = 32,
     av1_crf = 40,
-    av1_preset = 6, -- trade-off between speed and size, higher = faster
+    av1_preset = 6, -- trade-off between speed and size, higher = faster (also used for ENCODE_ANIMATED avif)
 
     -- GPU encoding
     gpu_type = "auto",                    -- auto-detect, or set manually: nvenc (NVIDIA), vaapi (AMD/Intel Linux), amf (AMD), qsv (Intel), videotoolbox (macOS)
@@ -44,7 +44,7 @@ local options = {
     nvenc_preset = "p4",                  -- NVENC speed preset: p1 (fastest) to p7 (best quality)
     gpu_h264_cq = 25,                     -- GPU quality (CQ/QP), lower = better quality
     gpu_h265_cq = 30,
-    gpu_av1_cq = 42,                      -- please check your GPU for AV1 support
+    gpu_av1_cq = 38,                      -- please check your GPU for AV1 support
 }
 require("mp.options").read_options(options)
 
@@ -278,13 +278,7 @@ local function get_data()
     return d
 end
 
--- Builds an ffmpeg arg list for a whole-file crop + re-encode described by spec:
---   gpu       bool        use GPU encoder (false = CPU/libx264/libx265/libsvtav1)
---   codec     string      "h264", "h265", or "av1"
---   audio_idx number      zero-based audio stream index
---   crop      string      the "crop=w:h:x:y" filter
---   scale     number|nil  cap output height to this value (nil = no cap)
--- The output path must be appended by the caller before passing to ffmpeg.
+-- Builds an ffmpeg arg list for a whole-file crop + re-encode
 local function build_encode_args(d, spec)
     local args = { "ffmpeg", "-nostdin", "-y", "-loglevel", "error" }
 
@@ -516,9 +510,7 @@ local function finalize_selection()
     selection_v = { x0 = x0, y0 = y0, x1 = x1, y1 = y1 }
 end
 
--- Tracks the mouse via the read-only mouse-pos property instead of the MOUSE_MOVE/MBTN_LEFT
--- key bindings: the OSC (modernx) already claims those keys for its own drag/click handling,
--- and mpv only delivers a key event to whichever script's binding wins that contest.
+-- Tracks the mouse via the read-only mouse-pos property
 local function on_mouse_pos_change(_, pos)
     if not crop_active or not pos or not pos.hover then return end
     local dim = mp.get_property_native("osd-dimensions")

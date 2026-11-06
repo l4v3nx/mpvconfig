@@ -1,5 +1,5 @@
 --[[
-    modernx.lua v0.4.7 by zydezu
+    modernx.lua v0.4.9 by zydezu
     (https://github.com/zydezu/ModernX)
 
     This script is a result of the original mpv-osc-modern by maoiscat
@@ -138,9 +138,9 @@ local user_opts = {
     date_format = "%Y-%m-%d",      -- how dates should be formatted, when read from metadata (uses standard lua date formatting)
 
     -- Title bar settings
-    window_title = true,                      -- show window title in borderless/fullscreen mode
-    window_controls = true,                   -- show window controls (close, minimize, maximize) in borderless/fullscreen
-    window_controls_title = "${media-title}", -- same as title but for window_controls
+    window_title = true,                   -- show window title in borderless/fullscreen mode
+    window_controls = true,                -- show window controls (close, minimize, maximize) in borderless/fullscreen
+    window_controls_title = "${filename}", -- same as title but for window_controls
 
     -- Subtitle display settings
     raise_subtitles = true,      -- whether to raise subtitles above the osc when it's shown
@@ -160,6 +160,7 @@ local user_opts = {
     track_nextprev_buttons = true,  -- show next/previous playlist track buttons
 
     volume_control = true,          -- show mute button and volume slider
+    volume_slider = true,           -- show the volume slider (requires volume_control)
     volume_control_type = "linear", -- volume scale type: "linear" or "logarithmic"
 
     info_button = false,            -- show info button
@@ -238,27 +239,29 @@ local user_opts = {
     ytdl_format = "",           -- optional parameteres for yt-dlp downloading, eg: '-f bestvideo+bestaudio/best'
 
     -- SponsorBlock - these SponsorBlock features need https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua specifically to function
-    show_sponsorblock_segments = true,             -- show SponsorBlock segments on the progress bar
-    add_sponsorblock_chapters = false,             -- add SponsorBlock chapters to the chapter list
-    sponsorblock_seek_range_alpha = 75,            -- transparency of SponsorBlock segments
-    sponsor_types = {                              -- what categories to show in the progress bar
-        "sponsor",                                 -- all categories: sponsor, intro, outro,
-        "intro",                                   -- interaction, selfpromo, preview, music_offtopic, filler
-        "outro",                                   -- video outro
-        "interaction",                             -- interaction reminders such as liking and subscribing
-        "selfpromo",                               -- self promotion of socials or other channels
-        "preview",                                 -- video preview
-        "music_offtopic",                          -- silence in music videos
-        "filler"                                   -- filler content/tangents
+    show_sponsorblock_segments = true,                               -- show SponsorBlock segments on the progress bar
+    add_sponsorblock_chapters = false,                               -- add SponsorBlock chapters to the chapter list
+    sponsorblock_seek_range_alpha = 75,                              -- transparency of SponsorBlock segments
+    sponsor_types = {                                                -- what categories to show in the progress bar
+        "sponsor",                                                   -- all categories: sponsor, intro, outro,
+        "intro",                                                     -- interaction, selfpromo, preview, music_offtopic, filler
+        "outro",                                                     -- video outro
+        "interaction",                                               -- interaction reminders such as liking and subscribing
+        "selfpromo",                                                 -- self promotion of socials or other channels
+        "preview",                                                   -- video preview
+        "music_offtopic",                                            -- silence in music videos
+        "filler"                                                     -- filler content/tangents
     },
-    sponsorblock_sponsor_color = "#00D400",        -- color for sponsors
-    sponsorblock_intro_color = "#00FFFF",          -- color for intermission/intro animations
-    sponsorblock_outro_color = "#0202ED",          -- color for endcards/credits
-    sponsorblock_interaction_color = "#CC00FF",    -- color for interaction reminders (reminders to subscribe)
-    sponsorblock_selfpromo_color = "#FFFF00",      -- color for unpaid/self promotion
-    sponsorblock_preview_color = "#008FD6",        -- color for unpaid/self promotion
-    sponsorblock_music_offtopic_color = "#FF9900", -- color for unpaid/self promotion
-    sponsorblock_filler_color = "#7300FF",         -- color for filler content/tangents
+    sponsorblock_sponsor_color = "#00D400",                          -- color for sponsors
+    sponsorblock_intro_color = "#00FFFF",                            -- color for intermission/intro animations
+    sponsorblock_outro_color = "#0202ED",                            -- color for endcards/credits
+    sponsorblock_interaction_color = "#CC00FF",                      -- color for interaction reminders (reminders to subscribe)
+    sponsorblock_selfpromo_color = "#FFFF00",                        -- color for unpaid/self promotion
+    sponsorblock_preview_color = "#008FD6",                          -- color for unpaid/self promotion
+    sponsorblock_music_offtopic_color = "#FF9900",                   -- color for unpaid/self promotion
+    sponsorblock_filler_color = "#7300FF",                           -- color for filler content/tangents
+    show_sponsorblock_segment_name_on_hover = false,                 -- show the SponsorBlock segment type name under the seekbar hover time/thumbnail
+    show_sponsorblock_segment_name_in_chapter_title_on_hover = true, -- temporarily show the SponsorBlock segment type name where the chapter title would be while hovering
 
     -- Experimental
     show_youtube_comments = true,              -- EXPERIMENTAL - show youtube comments
@@ -422,6 +425,7 @@ local language = {
         download_in_progress = "Download in progress",
         downloading = "Downloading",
         downloaded = "Already downloaded",
+        seedescription = "See description",
     }
 }
 local texts = language[user_opts.language] or language["en"]
@@ -621,6 +625,30 @@ local state = {
     message_text = nil, -- TODO: needs to be removed
     message_hide_timer = nil, ---@type mp.Timer? -- TODO: needs to be removed
 }
+
+local function get_sponsor_segment_name(pos)
+    if not user_opts.show_sponsorblock_segment_name_on_hover then
+        return nil
+    end
+    if not user_opts.show_sponsorblock_segments then
+        return nil
+    end
+    if type(state.sponsor_segments) ~= "table" then
+        return nil
+    end
+    for category, segments in pairs(state.sponsor_segments) do
+        if type(segments) == "table" then
+            for _, seg in ipairs(segments) do
+                if type(seg) == "table" and seg.start and seg["end"] then
+                    if pos >= seg.start and pos <= seg["end"] then
+                        return (tostring(category):gsub("^%l", string.upper):gsub("_", " "))
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
 
 local logo_lines = {
     -- White border
@@ -1376,17 +1404,26 @@ function render_elements(master_ass)
     -- because thumbfast will render it above the thumbnail instead
     if thumbfast.disabled then
         if user_opts.chapter_fmt ~= "no" and state.touchingprogressbar
-            and (user_opts.chapter_hover_title or user_opts.chapter_hover_subtitle) then
-            local dur = mp.get_property_number("duration", 0)
-            if dur > 0 then
-                local ch = get_chapter(state.sliderpos * dur / 100)
-                if ch and ch.title and ch.title ~= "" then
-                    local formatted = string.format(user_opts.chapter_fmt, ch.title)
-                    if user_opts.chapter_hover_subtitle then
-                        state.forced_chapter_title = formatted
-                    end
-                    if user_opts.chapter_hover_title then
-                        state.forced_title = formatted
+            and (user_opts.chapter_hover_title or user_opts.chapter_hover_subtitle
+                or user_opts.show_sponsorblock_segment_name_in_chapter_title_on_hover) then
+            local sponsor_name = user_opts.show_sponsorblock_segment_name_in_chapter_title_on_hover
+                and get_sponsor_segment_name(state.sliderpos)
+            if sponsor_name then
+                if user_opts.chapter_hover_subtitle or user_opts.show_sponsorblock_segment_name_in_chapter_title_on_hover then
+                    state.forced_chapter_title = string.format(user_opts.chapter_fmt, sponsor_name)
+                end
+            else
+                local dur = mp.get_property_number("duration", 0)
+                if dur > 0 then
+                    local ch = get_chapter(state.sliderpos * dur / 100)
+                    if ch and ch.title and ch.title ~= "" then
+                        local formatted = string.format(user_opts.chapter_fmt, ch.title)
+                        if user_opts.chapter_hover_subtitle then
+                            state.forced_chapter_title = formatted
+                        end
+                        if user_opts.chapter_hover_title then
+                            state.forced_title = formatted
+                        end
                     end
                 end
             end
@@ -1536,15 +1573,26 @@ function render_elements(master_ass)
                                 if user_opts.chapter_fmt ~= "no" and state.touchingprogressbar then
                                     local dur = mp.get_property_number("duration", 0)
                                     if dur > 0 then
-                                        local ch = get_chapter(state.sliderpos * dur / 100)
-                                        if ch and ch.title and ch.title ~= "" then
+                                        local sponsor_name = user_opts
+                                            .show_sponsorblock_segment_name_in_chapter_title_on_hover
+                                            and get_sponsor_segment_name(state.sliderpos)
+                                        local title_text = nil
+                                        if sponsor_name then
+                                            title_text = sponsor_name
+                                        else
+                                            local ch = get_chapter(state.sliderpos * dur / 100)
+                                            if ch and ch.title and ch.title ~= "" then
+                                                title_text = ch.title
+                                            end
+                                        end
+                                        if title_text then
                                             elem_ass:new_event()
                                             elem_ass:pos((thumbX + thumbfast.width / 2) * r_w,
                                                 thumbY * r_h - user_opts.time_font_size / 2)
                                             elem_ass:an(an)
                                             elem_ass:append(slider_lo.tooltip_style)
                                             ass_append_alpha(elem_ass, slider_lo.alpha, 0)
-                                            elem_ass:append(string.format(user_opts.chapter_fmt, ch.title))
+                                            elem_ass:append(string.format(user_opts.chapter_fmt, title_text))
                                         end
                                     end
                                 end
@@ -1756,6 +1804,13 @@ local user_title_format = (title_format ~= "" and title_format ~= mpv_default_ti
 local title_suffix = ""
 
 local function window_title_base()
+    -- use the real video title (eg: the YouTube title) instead of the URL
+    if state.is_URL then
+        local media_title = mp.get_property("media-title")
+        if media_title and media_title ~= "" then
+            return media_title
+        end
+    end
     if user_title_format then
         local title = mp.command_native({ "expand-text", user_title_format }) or ""
         if title ~= "" then return title end
@@ -1995,10 +2050,11 @@ function check_path_url()
         path = string.gsub(path, "ytdl://", "https://") -- Replace "ytdl://" with "https://"
     end
 
-    if is_url(path) and path or nil then
+    if is_url(path) then
         state.is_URL = true
         state.url_path = path
         print("URL detected.")
+        set_window_title()
 
         if path:match("https?://[^/]*youtube%.com/") or path:match("https?://youtu%.be/") then
             if path:match("/watch%?v=") or path:match("/shorts/") then
@@ -2419,7 +2475,7 @@ local function make_sponsorblock_segments()
                     end
                 end
                 if string.find(chapter.title, ("start"):gsub("[%[%]]", "%%%1")) then
-                    if not is_start_added then
+                    if not is_start_added and temp_segment[current_category] then
                         temp_segment[current_category]["start"] = chapter.time / duration * 100
                         temp_segment[current_category]["is_start_added"] = true
                     end
@@ -3110,7 +3166,7 @@ layouts["original"] = function()
     end
 
     -- Volumebar
-    if user_opts.volume_control then
+    if user_opts.volume_control and user_opts.volume_slider then
         lo = new_element("volumebarbg", "box")
         lo.visible = (osc_param.playresx >= 900 - outeroffset) and user_opts.volume_control
         lo = add_layout("volumebarbg")
@@ -3196,17 +3252,20 @@ layouts["original"] = function()
 
     -- Chapter Title (next to timestamp)
     if user_opts.show_chapter_title then
+        local time_chars = (show_hours and 8 or 5) + (state.tc_ms and 4 or 0)
+        local time_width = time_chars * user_opts.time_font_size * 0.55
+        local sep_x = 25 + time_width + 5
         lo = add_layout("separator")
-        lo.geometry = { x = 65 + (state.tc_ms and 25 or 0) + (show_hours and 16 or 0), y = refY - 84, an = 7, w = 30, h = 20 }
+        lo.geometry = { x = sep_x, y = refY - 84, an = 7, w = 30, h = 20 }
         lo.style = osc_styles.time
 
         lo = add_layout("chapter_title")
+        local chapter_x = sep_x + 35
         lo.geometry = {
-            x = 77 + (state.tc_ms and 25 or 0) + (show_hours and 16 or 0),
+            x = chapter_x,
             y = refY - 84,
             an = 7,
-            w = osc_geo
-                .w - 200 - ((show_hours or state.tc_ms) and 60 or 0),
+            w = osc_geo.w - chapter_x - 25 - ((show_hours or state.tc_ms) and 60 or 0),
             h = 20
         }
         lo.style = osc_styles.chapter_title
@@ -3294,6 +3353,9 @@ layouts["reduced"] = function()
     -- origin of the controllers, left/bottom corner
     local posX = 0
     local posY = osc_param.playresy
+    if user_opts.compact_mode then
+        posY = posY + 10
+    end
 
     osc_param.areas = {} -- delete areas
 
@@ -3331,10 +3393,22 @@ layouts["reduced"] = function()
     local refX = osc_w / 2
     local refY = posY
 
+    -- Seekbar width is dynamic - grow/shrink with the timer labels (HH:MM:SS vs MM:SS)
+    local remsec = mp.get_property_number("playtime-remaining", 0)
+    local possec = mp.get_property_number("playback-time", 0)
+    local dur = mp.get_property_number("duration", 0)
+    local show_hours = possec >= 3600 or user_opts.time_format ~= "dynamic"
+    local show_remhours = (state.tc_right_rem and remsec >= 3600) or (not state.tc_right_rem and dur >= 3600) or
+        user_opts.time_format ~= "dynamic"
+    local left_margin = 70 + (state.tc_ms and 30 or 0) + (show_hours and 20 or 0)
+    local right_margin = 70 + (state.tc_ms and 30 or 0) + (show_remhours and 25 or 0)
+    local seekbar_w = osc_geo.w - left_margin - right_margin
+    if seekbar_w < 100 then seekbar_w = 100 end
+
     -- Seekbar
     new_element('seekbarbg', 'box')
     lo = add_layout('seekbarbg')
-    lo.geometry = { x = refX, y = refY - 75, an = 5, w = osc_geo.w - 200, h = 2 }
+    lo.geometry = { x = refX, y = refY - 75, an = 5, w = seekbar_w, h = user_opts.seekbar_height }
     lo.layer = 13
     lo.style = osc_styles.seekbar_bg
     lo.alpha[1] = 128
@@ -3344,13 +3418,14 @@ layouts["reduced"] = function()
     elements['seekbarbg'].visible = not (user_opts.show_chapter_markers and user_opts.chapter_marker_style == "gap")
 
     lo = add_layout('seekbar')
-    lo.geometry = { x = refX, y = refY - 75, an = 5, w = osc_geo.w - 200, h = 16 }
+    lo.geometry = { x = refX, y = refY - 75, an = 5, w = seekbar_w, h = user_opts.progress_bar_height }
     lo.style = osc_styles.seekbar_fg
     lo.slider.gap = 7
     lo.slider.tooltip_style = osc_styles.tooltip
     lo.slider.tooltip_an = 2
+    lo.layer = 100
 
-    if (user_opts.persistent_progress or user_opts.persistent_progresstoggle) then
+    if (user_opts.persistent_progress_default or user_opts.persistent_progress_toggle) then
         lo = add_layout('persistentseekbar')
         lo.geometry = { x = refX, y = refY, an = 5, w = osc_geo.w, h = user_opts.persistent_progress_height }
         lo.style = osc_styles.seekbar_fg
@@ -3375,27 +3450,20 @@ layouts["reduced"] = function()
     local outeroffset = (chapter_skip_buttons and 0 or 100) + (jump_buttons and 0 or 100)
 
     -- Title
-    geo = { x = 25, y = refY - 97, an = 1, w = osc_geo.w - 170, h = 35 }
+    geo = { x = 25, y = refY - 94, an = 1, w = osc_geo.w - 170, h = 35 }
     lo = add_layout("title")
     lo.geometry = geo
-    lo.style = string.format("%s{\\clip(0,%f,%f,%f)}", osc_styles.title,
-        geo.y - geo.h, geo.x + osc_geo.w - 170, geo.y + geo.h)
+    local title_style_small = osc_styles.title:gsub("\\fs%d+", "\\fs26")
+    lo.style = string.format("%s{\\clip(0,%f,%f,%f)}", title_style_small,
+        geo.y - geo.h, geo.x + geo.w, geo.y + geo.h)
     lo.alpha[3] = 0
-    lo.button.maxchars = geo.w / 5
+    lo.button.maxchars = geo.w / 11
 
-    -- Description
-    if (state.localDescription ~= nil or state.is_URL) and user_opts.show_description then
-        geo = { x = osc_geo.w - 25, y = refY - 115, an = 9, w = 120, h = 19 }
-        lo = add_layout("description")
-        lo.geometry = geo
-        lo.style = string.format("%s{\\clip(0,%f,%f,%f)}", osc_styles.description,
-            geo.y - geo.h, geo.x + geo.w, geo.y + geo.h)
-        lo.alpha[3] = 0
-        -- lo.button.maxchars = geo.w / 11
-    end
+    -- Description button is intentionally omitted in reduced mode; the chapter
+    -- title takes its place in the top-right corner instead.
 
     -- Volumebar
-    if user_opts.volume_control then
+    if user_opts.volume_control and user_opts.volume_slider then
         lo = new_element("volumebarbg", "box")
         lo.visible = (osc_param.playresx >= 900 - outeroffset) and user_opts.volume_control
         lo = add_layout("volumebarbg")
@@ -3412,48 +3480,52 @@ layouts["reduced"] = function()
         lo.slider.tooltip_an = 2
     end
 
+    -- slightly smaller button icons in reduced mode
+    local control_1_small = osc_styles.control_1:gsub("\\fs%d+", "\\fs26")
+    local control_2_small = osc_styles.control_2:gsub("\\fs%d+", "\\fs20")
+
     -- buttons
     if track_nextprev_buttons then
         lo = add_layout('pl_prev')
-        lo.geometry = { x = refX - (60 + (chapter_skip_buttons and 60 or 0)) - offset, y = refY - 40, an = 5, w = 30, h = 24 }
-        lo.style = osc_styles.control_2
+        lo.geometry = { x = refX - (60 + (chapter_skip_buttons and 60 or 0)) - offset, y = refY - 40, an = 5, w = 22, h = 18 }
+        lo.style = control_2_small
     end
 
     if chapter_skip_buttons then
         lo = add_layout('skipback')
-        lo.geometry = { x = refX - 60 - offset, y = refY - 40, an = 5, w = 30, h = 24 }
-        lo.style = osc_styles.control_2
+        lo.geometry = { x = refX - 60 - offset, y = refY - 40, an = 5, w = 22, h = 18 }
+        lo.style = control_2_small
     end
 
     if jump_buttons then
         lo = add_layout('jumpback')
-        lo.geometry = { x = refX - 60, y = refY - 40, an = 5, w = 30, h = 24 }
-        lo.style = osc_styles.control_2
+        lo.geometry = { x = refX - 60, y = refY - 40, an = 5, w = 22, h = 18 }
+        lo.style = control_2_small
     end
 
     lo = add_layout("play_pause")
-    lo.geometry = { x = refX, y = refY - 40, an = 5, w = 45, h = 45 }
-    lo.style = osc_styles.control_1
+    lo.geometry = { x = refX, y = refY - 40, an = 5, w = 34, h = 34 }
+    lo.style = control_1_small
 
     if jump_buttons then
         lo = add_layout('jumpfrwd')
-        lo.geometry = { x = refX + 60, y = refY - 40, an = 5, w = 30, h = 24 }
+        lo.geometry = { x = refX + 60, y = refY - 40, an = 5, w = 22, h = 18 }
         -- HACK: jumpfrwd's icon must be mirrored for nonstandard # of seconds
         -- as the font only has an icon without a number for rewinding
         lo.style = (user_opts.jump_icon_number and icons.jumpicons[user_opts.jump_amount] ~= nil) and
-            osc_styles.control_2 or osc_styles.control_2_flip
+            control_2_small or osc_styles.control_2_flip
     end
 
     if chapter_skip_buttons then
         lo = add_layout('skipfrwd')
-        lo.geometry = { x = refX + 60 + offset, y = refY - 40, an = 5, w = 30, h = 24 }
-        lo.style = osc_styles.control_2
+        lo.geometry = { x = refX + 60 + offset, y = refY - 40, an = 5, w = 22, h = 18 }
+        lo.style = control_2_small
     end
 
     if track_nextprev_buttons then
         lo = add_layout('pl_next')
         lo.geometry = { x = refX + (60 + (chapter_skip_buttons and 60 or 0)) + offset, y = refY - 40, an = 5, w = 30, h = 24 }
-        lo.style = osc_styles.control_2
+        lo.style = control_2_small
     end
 
     -- Time
@@ -3465,6 +3537,7 @@ layouts["reduced"] = function()
     lo = add_layout("tc_left")
     lo.geometry = { x = 25, y = refY - 84, an = 7, w = 35 + (state.tc_ms and 30 or 0) + (show_hours and 20 or 0), h = 20 }
     lo.style = osc_styles.time
+    lo.layer = 150
 
     local show_remhours = (state.tc_right_rem and remsec >= 3600) or (not state.tc_right_rem and dur >= 3600) or
         user_opts.time_format ~= "dynamic"
@@ -3478,12 +3551,14 @@ layouts["reduced"] = function()
         h = 20
     }
     lo.style = osc_styles.time
+    lo.layer = 150
 
     -- Chapter Title (next to timestamp)
     if user_opts.show_chapter_title then
         lo = add_layout("chapter_title")
-        lo.geometry = { x = 25, y = refY - 125, an = 1, w = 120, h = 19 }
+        lo.geometry = { x = osc_geo.w - 25, y = refY - 108, an = 9, w = 120, h = 19 }
         lo.style = osc_styles.chapter_title
+        lo.layer = 150
     end
 
     -- Audio/Subtitle
@@ -3598,6 +3673,13 @@ local function osc_init()
         scale = user_opts.scale_windowed
     end
 
+    -- Apply system HiDPI scale so the OSC adapts to high-DPI displays
+    local dpi_scale = mp.get_property_number("display-hidpi-scale", 1)
+    if not dpi_scale or dpi_scale <= 0 then
+        dpi_scale = 1
+    end
+    scale = scale * dpi_scale
+
     if user_opts.vid_scale then
         osc_param.unscaled_y = baseResY
     else
@@ -3641,7 +3723,11 @@ local function osc_init()
         return not (title == "") and title or "mpv"
     end
     ne.eventresponder["mbtn_left_up"] = function()
-        mp.commandv("script-binding", "stats/display-page-1")
+        if user_opts.layout_option == "reduced" and (state.localDescription ~= nil or state.is_URL) and user_opts.show_description then
+            check_description()
+        else
+            mp.commandv("script-binding", "stats/display-page-1")
+        end
     end
     ne.eventresponder["shift+mbtn_left_down"] = function()
         mp.commandv("show-text", mp.get_property_osd("media-title"))
@@ -3656,7 +3742,7 @@ local function osc_init()
     ne.visible = (state.localDescription ~= nil or state.is_URL) and user_opts.show_description
     ne.content = function()
         if #state.videoDescription > 25 and user_opts.layout_option == "reduced" then
-            return "View description"
+            return texts.seedescription
         end
 
         if state.is_URL then
@@ -4167,6 +4253,11 @@ local function osc_init()
             if possec < 3600 and user_opts.time_format ~= "fixed" then
                 time = time:gsub("^00:", "")
             end
+            -- Show SponsorBlock segment type name under the hover time when applicable
+            local sponsor_name = get_sponsor_segment_name(pos)
+            if sponsor_name then
+                time = time .. "\\N" .. sponsor_name
+            end
             return time
         else
             return ""
@@ -4269,7 +4360,7 @@ local function osc_init()
         end
 
     --volumebar
-    if user_opts.volume_control then
+    if user_opts.volume_control and user_opts.volume_slider then
         local volume_max_setting = mp.get_property_number("volume-max")
         local volume_max = volume_max_setting and volume_max_setting > 0 and volume_max_setting or 100
         ne = new_element("volumebar", "slider")
@@ -4422,7 +4513,7 @@ local function osc_init()
         end
         return "" -- fallback
     end
-    ne.eventresponder["mbtn_left_up"] = function() show_message(get_chapterlist()) end
+    ne.eventresponder["mbtn_left_up"] = function() mp.commandv("script-binding", "select/select-chapter") end
 
     -- Total/remaining time display
     ne = new_element("tc_right", "button")
@@ -4435,7 +4526,10 @@ local function osc_init()
         if time_to_display < 0 then time_to_display = 0 end
         local prefix = state.tc_right_rem and (user_opts.unicode_minus and unicode_minus_symbol or "-") or ""
 
-        return prefix .. format_time(time_to_display) .. (state.is_live and " • LIVE" or "")
+        if state.is_live then
+            return "LIVE"
+        end
+        return prefix .. format_time(time_to_display)
     end
     ne.eventresponder["mbtn_left_up"] = function()
         state.tc_right_rem = not state.tc_right_rem
@@ -4504,7 +4598,8 @@ function adjust_subtitles(visible)
     if visible and user_opts.raise_subtitles and state.osc_visible == true and (state.fullscreen == false or user_opts.show_fullscreen) then
         local _, h = mp.get_osd_size()
         if h > 0 then
-            local subpos = math.floor((osc_param.playresy - (user_opts.raise_subtitle_amount - (user_opts.seekbar_between_timers and 25 or 0))) /
+            local between_timers = user_opts.seekbar_between_timers or user_opts.layout_option == "reduced"
+            local subpos = math.floor((osc_param.playresy - (user_opts.raise_subtitle_amount - (between_timers and 25 or 0))) /
                 osc_param.playresy * 100)
             if subpos < 0 then
                 subpos = 100                      -- out of screen, default to original position
