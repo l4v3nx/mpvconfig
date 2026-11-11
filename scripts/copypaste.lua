@@ -37,12 +37,9 @@ options.paste_keybind = mp.utils.parse_json(options.paste_keybind)
 
 local device = "linux"
 if os.getenv("windir") ~= nil then
-	device = "windows"
-elseif
-	os.execute('[ -d "/Applications" ]') == 0 and os.execute('[ -d "/Library" ]') == 0
-	or os.execute('[ -d "/Applications" ]') == true and os.execute('[ -d "/Library" ]') == true
-then
-	device = "mac"
+    device = "windows"
+elseif os.execute '[ -d "/Applications" ]' == 0 and os.execute '[ -d "/Library" ]' == 0 or os.execute '[ -d "/Applications" ]' == true and os.execute '[ -d "/Library" ]' == true then
+    device = "mac"
 end
 
 local function file_exists(name)
@@ -88,8 +85,8 @@ local function get_clipboard()
 end
 
 local function is_url(s)
-	local url_pattern = "^[%w]+://[%w%.%-_]+%.[%a]+[-%w%.%-%_/?&=]*"
-	return string.match(s, url_pattern) ~= nil
+    local url_pattern = "^[%w]+://[%w%.%-_]+%.[%a]+[-%w%.%-%_/?&=]*"
+    return string.match(s, url_pattern) ~= nil
 end
 
 local ignore_next_playlist_increase = false
@@ -119,41 +116,41 @@ local function add_item(name, file)
 end
 
 local function is_timestamp(str)
-	local pattern = "^%d+:%d+$" -- Matches "1:05", "0:54", "12:05"
+    local pattern = "^%d+:%d+$" -- Matches "1:05", "0:54", "12:05"
 
-	if string.match(str, pattern) then
-		return true
-	else
-		pattern = "^%d+:%d+:%d+$" -- Matches "1:12:02", "119:14"
-		if string.match(str, pattern) then
-			return true
-		else
-			return false
-		end
-	end
+    if string.match(str, pattern) then
+        return true
+    else
+        pattern = "^%d+:%d+:%d+$" -- Matches "1:12:02", "119:14"
+        if string.match(str, pattern) then
+            return true
+        else
+            return false
+        end
+    end
 end
 
 local function convert_timestamp(timestamp)
-	local hours, minutes, seconds = 0, 0, 0
+    local hours, minutes, seconds = 0, 0, 0
 
-	local parts = {}
-	for part in string.gmatch(timestamp, "%d+") do
-		table.insert(parts, tonumber(part))
-	end
+    local parts = {}
+    for part in string.gmatch(timestamp, "%d+") do
+        table.insert(parts, tonumber(part))
+    end
 
-	if #parts == 2 then
-		minutes = parts[1]
-		seconds = parts[2]
-	elseif #parts == 3 then
-		hours = parts[1]
-		minutes = parts[2]
-		seconds = parts[3]
-	else
-		return nil -- Invalid format
-	end
+    if #parts == 2 then
+        minutes = parts[1]
+        seconds = parts[2]
+    elseif #parts == 3 then
+        hours = parts[1]
+        minutes = parts[2]
+        seconds = parts[3]
+    else
+        return nil -- Invalid format
+    end
 
-	local total_seconds = hours * 3600 + minutes * 60 + seconds
-	return total_seconds
+    local total_seconds = hours * 3600 + minutes * 60 + seconds
+    return total_seconds
 end
 
 local function copy()
