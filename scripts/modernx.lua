@@ -140,7 +140,7 @@ local user_opts = {
     -- Title bar settings
     window_title = true,                   -- show window title in borderless/fullscreen mode
     window_controls = true,                -- show window controls (close, minimize, maximize) in borderless/fullscreen
-    window_controls_title = "${filename}", -- same as title but for window_controls
+    window_controls_title = "${media-title}", -- same as title but for window_controls
 
     -- Subtitle display settings
     raise_subtitles = true,      -- whether to raise subtitles above the osc when it's shown
@@ -164,7 +164,7 @@ local user_opts = {
     volume_control_type = "linear", -- volume scale type: "linear" or "logarithmic"
 
     info_button = false,            -- show info button
-    ontop_button = false,           -- show window on top button
+    ontop_button = true,           -- show window on top button
     screenshot_button = false,      -- show screenshot button
     screenshot_flag = "subtitles",  -- flag for screenshot button: "subtitles", "video", "window", "each-frame"
     -- https://mpv.io/manual/master/#screenshot-commands
@@ -187,8 +187,8 @@ local user_opts = {
     window_controls_minmax_hover = "#53A4FC", -- color of min/max window controls on hover
     title_color = "#FFFFFF",                  -- color of the title (above seekbar)
     seekbarfg_color = "#1D96F5",              -- color of the seekbar progress and handle, in Hex color format
-    seekbarbg_color = "#FFFFFF",              -- color of the remaining seekbar, in Hex color format
-    seekbar_cache_color = "#1D96F5",          -- color of the cache ranges on the seekbar
+    seekbarbg_color = "#000000",              -- color of the remaining seekbar, in Hex color format
+    seekbar_cache_color = "#FFFFFF",          -- color of the cache ranges on the seekbar
     volumebar_match_seek_color = false,       -- match volume bar color with seekbar color (ignores side_buttons_color)
     time_color = "#FFFFFF",                   -- color of the timestamps (below seekbar)
     chapter_title_color = "#FFFFFF",          -- color of the chapter title next to timestamp (below seekbar)
@@ -218,7 +218,7 @@ local user_opts = {
     hover_effect_for_sliders = false, -- apply hover effects to slider handles
 
     -- Progress bar settings
-    seek_handle_size = 0,                -- size ratio of the seekbar handle (range: 0 ~ 1)
+    seek_handle_size = 0.75,                -- size ratio of the seekbar handle (range: 0 ~ 1)
     seekbar_between_timers = false,      -- moves the seekbar and progress bar between the timers
     seekbar_height = 2,                  -- height of the seekbar
     progress_bar_height = 16,            -- height of the progress bar
