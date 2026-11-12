@@ -15,7 +15,6 @@ local options = {
     paste_keybind = [[
         ["ctrl+v", "ctrl+V", "meta+v", "meta+V"]
     ]],
-    open_keybind = "o",
     copy_youtube_timestamp = true,
 }
 
@@ -294,4 +293,3 @@ end)
 
 bind_keys(options.copy_keybind, "copy", copy)
 bind_keys(options.paste_keybind, "paste", paste)
-mp.add_forced_key_binding(options.open_keybind, "open", open)
